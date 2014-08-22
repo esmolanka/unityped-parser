@@ -1,4 +1,3 @@
-
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -8,15 +7,10 @@
 
 module Parser where
 
-import System.IO
-
 import Control.Applicative
 import Control.Monad.Reader
 import Control.Monad.Error
 
-import Text.PrettyPrint.ANSI.Leijen as PP
-
-import Data.Data
 import Data.Maybe
 
 data Identifier = Id { unId :: String } deriving (Show, Eq)
@@ -27,7 +21,7 @@ data Failure =
   | AndQ [FailureReason]
   | And  [Failure]
   | Expectation Identifier (Maybe Identifier)
-  | ParseError String deriving (Show)
+  | ParseError Position String deriving (Show)
 
 flattenOr :: Failure -> [Failure]
 flattenOr (Or fs) = concatMap flattenOr fs
@@ -74,7 +68,7 @@ instance Applicative Result where
   Failure e <*> Failure i = Failure (bothReasons e i)
 
 instance Alternative Result where
-  empty = Failure (FailureReason [] (ParseError "empty"))
+  empty = Failure (FailureReason [] (ParseError [] "empty"))
   Success a <|> _         = Success a
   Failure _ <|> Success a = Success a
   Failure e <|> Failure i = Failure (anyReason e i)
@@ -105,9 +99,12 @@ runParser = unResult . flip runReaderT [In "@"] . unParser
   where unResult (Success a) = Right a
         unResult (Failure reason) = Left reason
 
-expectationError :: (Data e) => Identifier -> e -> Parser a
+class GetId a where
+  getId :: a -> Identifier
+
+expectationError :: (GetId e) => Identifier -> e -> Parser a
 expectationError expected got =
-  throwError $ Expectation expected (Just (Id .show . toConstr $ got))
+  throwError $ Expectation expected (Just (getId got))
 
 expectationErrorStr :: Identifier -> Identifier -> Parser a
 expectationErrorStr expected got =
@@ -120,40 +117,10 @@ expectationErrorField expected =
 dive :: Qualifier -> Parser a -> Parser a
 dive q = local (q :)
 
-instance Pretty Qualifier where
-  pretty (In s) = text s
+jump :: Position -> Parser a -> Parser a
+jump pos = local (const pos)
 
-instance Pretty Identifier where
-  pretty (Id s) = text s
+-- Annotations
 
-instance Pretty FailureReason where
-  pretty (FailureReason pos fls) =
-    "at" <+> align (vcat [green (ppPos pos) , pretty fls])
-    where
-      ppPos :: Position -> Doc
-      ppPos = hsep . map (text . unIn) . reverse
+type PosAnnotated a = (Position, a)
 
-ppBlock :: String -> [Doc] -> Doc
-ppBlock op as =
-  lbrace <+> align (vcat (punctuate (space <> text op) . map (align . pretty) $ as)) <+> rbrace
-
-instance Pretty Failure where
-  pretty (And as)  = ppBlock "and" (map pretty as)
-  pretty (AndQ as) = ppBlock "and" (map pretty as)
-  pretty (Or as)   = ppBlock "or" (map pretty as)
-  pretty (OrQ as)  = ppBlock "or" (map pretty as)
-  pretty (Expectation exp Nothing) = "required" <+> pretty exp
-  pretty (Expectation exp (Just got)) = "expected" <+> pretty exp <> comma <+> "got" <+> pretty got
-  pretty (ParseError msg) = "Parse error:" <+> text msg
-
-ppFailureReason :: FailureReason -> Doc
-ppFailureReason reason = "Failure" <+> pretty reason <> linebreak
-
-display :: Doc -> IO ()
-display = displayIO stdout . renderPretty 0.3 120
-
-parseIO :: Show a => (e -> Parser a) -> e -> IO ()
-parseIO p a =
-  case parse p a of
-    Left reason -> display $ ppFailureReason reason
-    Right a     -> print a
