@@ -6,23 +6,22 @@ import Control.Applicative
 import Class
 import Parser
 import Value
-import RecursionSchemes
-
+import Pretty
 
 tbl1 :: Value
-tbl1 = Fix $ Table "XYTable" [ "X" :|: xcol
-                             , "Y" :|: ycol
-                             ]
+tbl1 = iTable "XYTable" [ "X" :|: xcol
+                        , "Y" :|: ycol
+                        ]
   where xcol = map toValue ( [10, 20, 30] :: [Int] )
-        ycol = map Fix [StrLit "10", DblLit 3.14, StrLit "30"]
+        ycol = [iString "10", iDouble 3.14, iString "30"]
 
 testVal1 :: Value
-testVal1 = Fix $ Dict [ "Foo" :*: tbl1
-                      , "Fooo" :*: tbl1
-                      , "Bar" :*: Fix (StrLit "BAR!")
-                      , "Baz" :*: Fix (Arr $ map Fix [IntLit 10, DblLit 20, IntLit 30])
-                      , "Buqz" :*: Fix (Dict [])
-                      ]
+testVal1 = iDict [ "Foo" :*: tbl1
+                 , "Fooo" :*: tbl1
+                 , "Bar" :*: iString "BAR!"
+                 , "Baz" :*: iArr [iInt 10, iDouble 20, iInt 30]
+                 , "Buqz" :*: iDict []
+                 ]
 
 fun4 :: String -> Double -> Int -> Int -> Int
 fun4 = undefined
@@ -47,3 +46,21 @@ pFooX2orBuqzFixx = withDict (\d -> fooX2 d <|> buqzFixx d)
                        <|> d .: "Fixxxx"
                        <|> withField "Bazz" (\s -> read <$> parseValue s) d
 
+
+testSomeComplex :: Value
+testSomeComplex = toValue [ ("N", iInt 5)
+                          , ("Hello", hello)
+                          , ("World", world)
+                          ]
+  where hello = toValue [ ("Y", 10 :: Int) ]
+        world = toValue [ 10 :: Int, 20, 30, 40 ]
+
+pSomeComplex :: AnnotatedValue -> Parser Int
+pSomeComplex v = do
+  n  <- flip withDict v $ (.: "N")
+  v2 <- flip withDict v $ withField "Hello" return
+  v1 <- flip withDict v $ withField "World" return
+  (+) <$> (flip withArr v1 $ withElem n parseValue) <*> (flip withDict v2 $ \d -> (d .: "Foo") <|> (read <$> d .: "Bar"))
+main :: IO ()
+main = do
+  parseIO pFooX2orBuqzFixx testVal1

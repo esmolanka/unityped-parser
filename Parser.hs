@@ -13,6 +13,8 @@ import Control.Monad.Error
 
 import Data.Maybe
 
+import RecursionSchemes
+
 data Identifier = Id { unId :: String } deriving (Show, Eq)
 
 data Failure =
@@ -21,7 +23,7 @@ data Failure =
   | AndQ [FailureReason]
   | And  [Failure]
   | Expectation Identifier (Maybe Identifier)
-  | ParseError Position String deriving (Show)
+  | ParseError String deriving (Show)
 
 flattenOr :: Failure -> [Failure]
 flattenOr (Or fs) = concatMap flattenOr fs
@@ -31,25 +33,36 @@ flattenAnd :: Failure -> [Failure]
 flattenAnd (And fs) = concatMap flattenAnd fs
 flattenAnd other = [other]
 
-data Qualifier = In { unIn :: String } deriving (Show, Eq)
+data Qualifier = InObj Identifier
+               | InField String
+               | InColumn String
+               | AtIndex Int
+                 deriving (Show, Eq)
 
 type Position = [ Qualifier ]
 
+type Raw f = Fix f
+type Annotated f = Cofree f Position
+
 data FailureReason = FailureReason Position Failure deriving (Show)
 
-bothReasons :: FailureReason -> FailureReason -> FailureReason
-bothReasons a@(FailureReason pos af) b@(FailureReason pos' bf) =
-  if | pos == pos' -> FailureReason pos (And $ concatMap flattenAnd [af, bf])
-     | otherwise -> FailureReason pos (AndQ [a, b])
+getCommonNode :: Eq a => [a] -> [a] -> [a]
+getCommonNode pos pos' = reverse . catMaybes $ zipWith match (reverse pos) (reverse pos')
+  where match a b | a == b = Just a
+                  | otherwise = Nothing
 
-anyReason :: FailureReason -> FailureReason -> FailureReason
-anyReason a@(FailureReason pos af) b@(FailureReason pos' bf) =
-  if | pos == pos' -> FailureReason pos (Or $ concatMap flattenOr [af, bf])
-     | otherwise   -> FailureReason commonPos (OrQ [a, b])
-    where
-      commonPos = reverse . catMaybes $ zipWith match (reverse pos) (reverse pos')
-      match a b | a == b = Just a
-                | otherwise = Nothing
+bothReasons :: (Maybe Position) -> FailureReason -> FailureReason -> FailureReason
+bothReasons ctx a@(FailureReason pos af) b@(FailureReason pos' bf) =
+  if | pos == pos' && Just pos == ctx
+       -> FailureReason pos (And $ concatMap flattenAnd [af, bf])
+     | otherwise
+       -> FailureReason (fromMaybe (getCommonNode pos pos') ctx) (AndQ [a, b])
+
+anyReason :: (Maybe Position) -> FailureReason -> FailureReason -> FailureReason
+anyReason ctx a@(FailureReason pos af) b@(FailureReason pos' bf) =
+  if | pos == pos' && Just pos == ctx
+       -> FailureReason pos (Or $ concatMap flattenOr [af, bf])
+     | otherwise -> FailureReason (fromMaybe (getCommonNode pos pos') ctx) (OrQ [a, b])
 
 data Result a = Success a
               | Failure FailureReason
@@ -60,18 +73,28 @@ instance Monad Result where
   (Success a) >>= fm = fm a
   Failure f >>= _ = Failure f
 
+apInContext ::  Maybe Position -> Result (a -> b) -> Result a -> Result b
+apInContext pos a b = a <**> b
+  where
+    Success f <**> Success a = Success (f a)
+    Success _ <**> Failure e = Failure e
+    Failure e <**> Success _ = Failure e
+    Failure e <**> Failure i = Failure (bothReasons pos e i)
+
 instance Applicative Result where
   pure = Success
-  Success f <*> Success a = Success (f a)
-  Success _ <*> Failure e = Failure e
-  Failure e <*> Success _ = Failure e
-  Failure e <*> Failure i = Failure (bothReasons e i)
+  (<*>) = apInContext Nothing
+
+altInContext :: Maybe Position -> Result a -> Result a -> Result a
+altInContext pos a b = a <||> b
+  where
+    Success a <||> _         = Success a
+    Failure _ <||> Success a = Success a
+    Failure e <||> Failure i = Failure (anyReason pos e i)
 
 instance Alternative Result where
-  empty = Failure (FailureReason [] (ParseError [] "empty"))
-  Success a <|> _         = Success a
-  Failure _ <|> Success a = Success a
-  Failure e <|> Failure i = Failure (anyReason e i)
+  empty = Failure (FailureReason [] (ParseError "empty"))
+  (<|>) = altInContext Nothing
 
 instance MonadError FailureReason Result where
   throwError = Failure
@@ -81,7 +104,7 @@ instance MonadError FailureReason Result where
 newtype Parser a =
   Parser
   { unParser :: ReaderT Position Result a }
-  deriving (Functor, Monad, Applicative, Alternative, MonadReader Position)
+  deriving (Functor, Monad, MonadReader Position)
 
 instance MonadError Failure Parser where
   throwError fs = do
@@ -91,16 +114,34 @@ instance MonadError Failure Parser where
                      Right a -> return a
                      Left (FailureReason _ fs) -> f fs
 
-parse :: (e -> Parser a) -> e -> Either FailureReason a
-parse p a = runParser (p a)
+instance Applicative Parser where
+  pure = return
+  fa <*> b = do
+    pos <- ask
+    let fa' = runReaderT (unParser fa) pos
+    let b'  = runReaderT (unParser b) pos
+    Parser (ReaderT (\_ -> apInContext (Just pos) fa' b'))
+
+instance Alternative Parser where
+  empty = throwError (ParseError "empty")
+  a <|> b = do
+    pos <- ask
+    let a' = runReaderT (unParser a) pos
+    let b' = runReaderT (unParser b) pos
+    Parser (ReaderT (\_ -> altInContext (Just pos) a' b'))
+
+parse :: (Annotatible f) => (Annotated f -> Parser a) -> Raw f -> Either FailureReason a
+parse p = runParser . p . annotate
 
 runParser :: Parser a -> Either FailureReason a
-runParser = unResult . flip runReaderT [In "@"] . unParser
+runParser = unResult . flip runReaderT [InObj (Id "@")] . unParser
   where unResult (Success a) = Right a
         unResult (Failure reason) = Left reason
 
 class GetId a where
   getId :: a -> Identifier
+  getIn :: a -> Qualifier
+  getIn = InObj . getId
 
 expectationError :: (GetId e) => Identifier -> e -> Parser a
 expectationError expected got =
@@ -114,6 +155,10 @@ expectationErrorField :: Identifier -> Parser a
 expectationErrorField expected =
   throwError $ Expectation expected Nothing
 
+parseError :: String -> Parser a
+parseError msg =
+  throwError $ ParseError msg
+
 dive :: Qualifier -> Parser a -> Parser a
 dive q = local (q :)
 
@@ -122,5 +167,6 @@ jump pos = local (const pos)
 
 -- Annotations
 
-type PosAnnotated a = (Position, a)
-
+class Annotatible f where
+  annotate :: Raw f -> Annotated f
+  unannotate :: Annotated f -> Raw f

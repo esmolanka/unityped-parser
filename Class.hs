@@ -7,20 +7,14 @@ module Class where
 
 import Control.Applicative
 
-import Control.Monad.Reader
-
 import Parser
 import Value
-import RecursionSchemes
 
 class IsValue v where
   runParserOn :: (Value -> Parser a) -> v -> Parser a
 
 instance IsValue Value where
   runParserOn p v = p v
-
-instance IsValue (PosAnnotated Value) where
-  runParserOn p (pos, v) = local (const pos) (p v)
 
 class FromValue a where
   parseValue :: AnnotatedValue -> Parser a
@@ -41,38 +35,41 @@ instance FromValue Int where
   parseValue = withInt pure
 
 instance ToValue Int where
-  toValue = Fix . IntLit
+  toValue = iInt
 
 instance FromValue Double where
   parseValue = withDouble pure
 
 instance ToValue Double where
-  toValue = Fix . DblLit
+  toValue = iDouble
 
 instance FromValue Bool where
   parseValue = withBool pure
 
 instance ToValue Bool where
-  toValue = Fix . BoolLit
+  toValue = iBool
 
 instance FromValue String where
   parseValue = withStr pure
 
 instance ToValue String where
-  toValue = Fix . StrLit
+  toValue = iString
 
 instance (FromValue a) => FromValue [(String, [a])] where
-  parseValue = withTableLike $
-                 mapM $ \(k :|: vs) ->
-                   (k,) <$> dive (In $ ":" ++ k)
-                          (mapM (\(v,i) -> dive (In $ "[" ++ show (i :: Int) ++ "]") (parseValue v)) (zip vs [0..]))
+  parseValue = withTableLike $ withColumns $ withElems parseValue
 
 instance (ToValue a) => ToValue [(String, [a])] where
-  toValue = Fix . Table "Anonymous" . map (\(k,v) -> (k :|: map toValue v))
+  toValue = iTable "Anonymous" . map (\(k,v) -> (k :|: map toValue v))
 
 instance (FromValue a) => FromValue [(String, a)] where
-  parseValue = withDict (mapM (\(k :*: v) -> (k,) <$> dive (In $ "." ++ k) (parseValue v)))
+  parseValue = withDict $ withFields parseValue
 
 instance (ToValue a) => ToValue [(String, a)] where
-  toValue = Fix . Dict . map (\(k,v) -> (k :*: toValue v))
+  toValue = iDict . map (\(k,v) -> (k :*: toValue v))
+
+instance (FromValue a) => FromValue [a] where
+  parseValue = withArr $ withElems parseValue
+
+instance (ToValue a) => ToValue [a] where
+  toValue = iArr . map toValue
 
