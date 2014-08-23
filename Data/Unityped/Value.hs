@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -46,7 +45,6 @@ import Control.Monad.Reader
 import Control.Comonad.Cofree
 
 import Data.Functor.Foldable (Fix (..), cata)
-import Data.Data
 import qualified Data.Map as M
 
 import Data.Traversable (Traversable)
@@ -56,10 +54,10 @@ import qualified Data.Traversable as Tr
 import Control.Monad.UnitypedParser
 
 data PairF e = String :*: e
-  deriving (Eq, Show, Data, Typeable, Functor, Traversable, Foldable)
+  deriving (Eq, Show, Functor, Traversable, Foldable)
 
 data ColumnF e = String :|: [e]
-  deriving (Eq, Show, Data, Typeable, Functor, Traversable, Foldable)
+  deriving (Eq, Show, Functor, Traversable, Foldable)
 
 data ValueF e =
     Dict    [PairF e]
@@ -69,7 +67,7 @@ data ValueF e =
   | IntLit  Int
   | DblLit  Double
   | BoolLit Bool
-    deriving (Show, Eq, Data, Typeable, Functor, Traversable, Foldable)
+    deriving (Show, Eq, Functor, Traversable, Foldable)
 
 type Value  = Fix ValueF
 type Pair   = PairF Value
@@ -100,16 +98,24 @@ iDouble = Fix . DblLit
 iBool :: Bool -> Fix ValueF
 iBool = Fix . BoolLit
 
+annotateField :: PairF (Reader Position (Cofree ValueF Position)) -> Reader Position AnnotatedPair
+annotateField (k :*: rv) = fmap (k :*:) (local (InField k:) rv)
+
+annotateColumn :: ColumnF (Reader Position (Cofree ValueF Position)) -> Reader Position AnnotatedColumn
+annotateColumn (k :|: rv) = fmap (k :|:) (local (InColumn k:) (annotateWithIndices rv))
+
+annotateWithIndices :: [Reader Position AnnotatedValue] -> Reader Position [AnnotatedValue]
+annotateWithIndices = sequence . map (\(i, r) -> local (AtIndex i:) r) . zip [0..]
+
 instance Annotatible ValueF where
-  unannotate = undefined
   annotate root = runReader (cata alg root) [InObj (Id "@")]
     where
       alg :: ValueF (Reader Position (Cofree ValueF Position)) -> Reader Position (Cofree ValueF Position)
-      alg obj@(Dict pairs) = (:<) <$> ask <*> local (getIn obj:) (Dict <$> mapM annotateField pairs)
-        where
-          annotateField :: PairF (Reader Position (Cofree ValueF Position)) -> Reader Position AnnotatedPair
-          annotateField (k :*: rv) = fmap (k :*:) (local (InField k:) rv)
-      alg other = (:<) <$> ask <*> (Tr.sequence other)
+      alg obj@(Dict pairs)     = (:<) <$> ask <*> local (getIn obj:) (Dict      <$> mapM annotateField pairs)
+      alg obj@(Table cls cols) = (:<) <$> ask <*> local (getIn obj:) (Table cls <$> mapM annotateColumn cols)
+      alg obj@(Arr vals)       = (:<) <$> ask <*> local (getIn obj:) (Arr       <$> annotateWithIndices vals)
+      alg other                = (:<) <$> ask <*> Tr.sequence other
+  unannotate = error "Unannotation for ValueF is not implemented"
 
 instance GetId (ValueF f)  where
   getId (Dict _)      = Id "Dict"

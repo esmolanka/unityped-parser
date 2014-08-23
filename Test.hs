@@ -2,9 +2,120 @@
 module Test where
 
 import Control.Applicative
+import Control.Monad
 
 import Control.Monad.UnitypedParser
 import Data.Unityped
+
+-- ## Simple example
+-- {"Hello": "World"}
+
+-- For sake of simplicity, we won't use any clever Value construction
+-- techniques, we'll construct the dictionary manually.
+
+helloWorldDict :: Value
+helloWorldDict = iDict [ ("Hello" :*: iString "World") ]
+
+pHelloWhat :: AnnotatedValue -> Parser String
+pHelloWhat obj = ("We need to say hello to "++) <$> withDict (withField "Hello" parseValue) obj
+
+pGreetingsTo' :: AnnotatedValue -> Parser String
+pGreetingsTo' obj = ("We need to say hello to "++) <$> withDict (withField "Greetings" parseValue) obj
+
+testHelloWorld :: IO ()
+testHelloWorld = do
+  putStrLn "Trying \"Hello\""
+  parseIO pHelloWhat helloWorldDict
+
+  putStrLn "Trying \"Greetings\""
+  parseIO pGreetingsTo' helloWorldDict
+
+-- ## Simple example with arrays
+-- {"Greetings": ["John", "Bob", "Alice"]}
+
+greetingsDict :: Value
+greetingsDict = iDict [ ("Greetings" :*: iArr [ iString "John"
+                                              , iString "Bob"
+                                              , iString "Alice"
+                                              ] ) ]
+
+-- We can return unityped value from our parser, but it'll be
+-- annotated with its position in input structure, so even if you
+-- defer parsing of that value, the error will contain correct
+-- position of value which parser was unable to process.
+pGreetingsTo :: AnnotatedValue -> Parser AnnotatedValue
+pGreetingsTo = withDict (withField "Greetings" return)
+
+pThirdPerson :: AnnotatedValue -> Parser String
+pThirdPerson = pGreetingsTo >=> withArr (withElem 2 parseValue)
+
+pFourthPerson :: AnnotatedValue -> Parser String
+pFourthPerson = pGreetingsTo >=> withArr (withElem 3 parseValue)
+
+testGreeting :: IO ()
+testGreeting = do
+  putStrLn "Third person to greet is: "
+  parseIO (pThirdPerson) greetingsDict
+
+  putStrLn "Fourth person to greet is: "
+  parseIO (pFourthPerson) greetingsDict
+
+-- ## Simple context dependent example
+-- { "Index": 2
+-- , "Greetings": ["John", "Bob", "Alice"] }
+
+greetingsDictWithIndex :: Value
+greetingsDictWithIndex =
+  iDict
+    [ "Index" :*: iInt 2
+    , "Greetings" :*: iArr [ iString "John"
+                           , iString "Bob"
+                           , iString "Alice"
+                           ]
+    ]
+
+pNthPerson :: Int -> AnnotatedValue -> Parser String
+pNthPerson n = pGreetingsTo >=> withArr (withElem n parseValue)
+
+pContextDependentGreeting :: AnnotatedValue -> Parser String
+pContextDependentGreeting obj = do
+  n <- withDict (.: "Index") obj
+  person <- pNthPerson n obj
+  return $ "Hello " ++ person ++ ". You're number " ++ show n ++ " (counting from zero ;))"
+
+testContextDependentGreeting :: IO ()
+testContextDependentGreeting = do
+  parseIO pContextDependentGreeting greetingsDictWithIndex
+
+-- ## Alternative + Applicative example
+-- {"base": 10, "a-side": 5, "angle": 0.8}
+
+triangle :: Value
+triangle = iDict
+  [ "base" :*: iDouble 10
+  , "a-side" :*: iDouble 2
+  , "angle" :*: iDouble 0.8
+  ]
+
+pTriangleArea :: AnnotatedValue -> Parser Double
+pTriangleArea obj = pFromBaseAndHeight obj <|> pFromSidesAndAngle obj
+  where
+    fromBaseAndHeight :: Double -> Double -> Double
+    fromBaseAndHeight b h = b * h / 2
+
+    pFromBaseAndHeight = withDict $ \d -> fromBaseAndHeight <$> (d .: "base")
+                                                            <*> (d .: "height")
+
+    fromSidesAndAngle:: Double -> Double -> Double -> Double
+    fromSidesAndAngle a b alpha = a * b * sin alpha / 2
+
+    pFromSidesAndAngle = withDict $ \d -> fromSidesAndAngle <$> (d .: "a-side")
+                                                            <*> (d .: "b-side")
+                                                            <*> (d .: "alpha")
+
+testTriangleArea :: IO ()
+testTriangleArea = do
+  parseIO pTriangleArea triangle
 
 tbl1 :: Value
 tbl1 = iTable "XYTable" [ "X" :|: xcol
@@ -13,19 +124,19 @@ tbl1 = iTable "XYTable" [ "X" :|: xcol
   where xcol = map toValue ( [10, 20, 30] :: [Int] )
         ycol = [iString "10", iDouble 3.14, iString "30"]
 
-testVal1 :: Value
-testVal1 = iDict [ "Foo" :*: tbl1
-                 , "Fooo" :*: tbl1
-                 , "Bar" :*: iString "BAR!"
-                 , "Baz" :*: iArr [iInt 10, iDouble 20, iInt 30]
-                 , "Buqz" :*: iDict []
-                 ]
+val1 :: Value
+val1 = iDict [ "Foo" :*: tbl1
+             , "Fooo" :*: tbl1
+             , "Bar" :*: iString "BAR!"
+             , "Baz" :*: iArr [iInt 10, iDouble 20, iInt 30]
+             , "Buqz" :*: iDict []
+             ]
 
 fun4 :: String -> Double -> Int -> Int -> Int
 fun4 = undefined
 
-parseer2 :: AnnotatedValue -> Parser Int
-parseer2 = withDict $ \d -> do
+parser2 :: AnnotatedValue -> Parser Int
+parser2 = withDict $ \d -> do
              (a,b,c) <-
                (,,) <$> withField "Fooo" (withTable "XYTable" (withColumn "Z" (withElem 1 parseValue))) d
                     <*> withField "Baz" (withArr (withElem 1 (withDouble (return . fromIntegral . truncate)))) d
@@ -45,11 +156,11 @@ pFooX2orBuqzFixx = withDict (\d -> fooX2 d <|> buqzFixx d)
                        <|> withField "Bazz" (\s -> read <$> parseValue s) d
 
 
-testSomeComplex :: Value
-testSomeComplex = toValue [ ("N", iInt 5)
-                          , ("Hello", hello)
-                          , ("World", world)
-                          ]
+someComplexVal :: Value
+someComplexVal = toValue [ ("N", iInt 5)
+                         , ("Hello", hello)
+                         , ("World", world)
+                         ]
   where hello = toValue [ ("Y", 10 :: Int) ]
         world = toValue [ 10 :: Int, 20, 30, 40 ]
 
@@ -62,5 +173,11 @@ pSomeComplex v = do
 
 main :: IO ()
 main = do
-  parseIO pFooX2orBuqzFixx testVal1
-  parseIO pSomeComplex testSomeComplex
+  testHelloWorld
+  testGreeting
+  testContextDependentGreeting
+  testTriangleArea
+
+  parseIO pFooX2orBuqzFixx val1
+  parseIO pSomeComplex someComplexVal
+  parseIO parser2 someComplexVal
