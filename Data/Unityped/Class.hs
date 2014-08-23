@@ -3,12 +3,12 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE OverlappingInstances #-}
 
-module Class where
+module Data.Unityped.Class where
 
 import Control.Applicative
 
-import Parser
-import Value
+import Control.Monad.UnitypedParser
+import Data.Unityped.Value
 
 class IsValue v where
   runParserOn :: (Value -> Parser a) -> v -> Parser a

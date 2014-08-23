@@ -3,10 +3,8 @@ module Test where
 
 import Control.Applicative
 
-import Class
-import Parser
-import Value
-import Pretty
+import Control.Monad.UnitypedParser
+import Data.Unityped
 
 tbl1 :: Value
 tbl1 = iTable "XYTable" [ "X" :|: xcol
@@ -61,6 +59,8 @@ pSomeComplex v = do
   v2 <- flip withDict v $ withField "Hello" return
   v1 <- flip withDict v $ withField "World" return
   (+) <$> (flip withArr v1 $ withElem n parseValue) <*> (flip withDict v2 $ \d -> (d .: "Foo") <|> (read <$> d .: "Bar"))
+
 main :: IO ()
 main = do
   parseIO pFooX2orBuqzFixx testVal1
+  parseIO pSomeComplex testSomeComplex

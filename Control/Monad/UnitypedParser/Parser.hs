@@ -5,7 +5,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Parser where
+module Control.Monad.UnitypedParser.Parser where
 
 import Control.Comonad.Cofree
 import Control.Applicative

@@ -6,7 +6,7 @@
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE DeriveFoldable #-}
 
-module Value
+module Data.Unityped.Value
   ( iDict
   , iTable
   , iArr
@@ -38,6 +38,7 @@ module Value
   , withInt
   , withDouble
   , withBool
+  , parse
   ) where
 
 import Control.Applicative
@@ -52,7 +53,7 @@ import Data.Traversable (Traversable)
 import Data.Foldable (Foldable)
 import qualified Data.Traversable as Tr
 
-import Parser
+import Control.Monad.UnitypedParser
 
 data PairF e = String :*: e
   deriving (Eq, Show, Data, Typeable, Functor, Traversable, Foldable)
