@@ -42,7 +42,9 @@ module Value
 
 import Control.Applicative
 import Control.Monad.Reader
+import Control.Comonad.Cofree
 
+import Data.Functor.Foldable (Fix (..), cata)
 import Data.Data
 import qualified Data.Map as M
 
@@ -50,7 +52,6 @@ import Data.Traversable (Traversable)
 import Data.Foldable (Foldable)
 import qualified Data.Traversable as Tr
 
-import RecursionSchemes
 import Parser
 
 data PairF e = String :*: e

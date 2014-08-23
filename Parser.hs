@@ -7,13 +7,13 @@
 
 module Parser where
 
+import Control.Comonad.Cofree
 import Control.Applicative
 import Control.Monad.Reader
-import Control.Monad.Error
+import Control.Monad.Except
 
 import Data.Maybe
-
-import RecursionSchemes
+import Data.Functor.Foldable
 
 data Identifier = Id { unId :: String } deriving (Show, Eq)
 

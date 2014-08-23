@@ -6,7 +6,6 @@ version:             0.0.1
 synopsis:            Parser from unityped representation to Haskell data structures
 -- description:
 license:             PublicDomain
-license-file:        LICENSE
 author:              Eugene Smolanka
 maintainer:          esmolanka@gmail.com
 -- copyright:
@@ -16,9 +15,9 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     Test, Class, Parser, Value, RecursionSchemes
+  exposed-modules:     Test, Class, Parser, Value
   -- other-modules:
   -- other-extensions:
-  build-depends:       base >=4.7 && <4.8, mtl, ansi-wl-pprint, containers, transformers
+  build-depends:       base >=4.7 && <4.8, mtl, ansi-wl-pprint, containers, transformers, free, recursion-schemes
   -- hs-source-dirs:
   default-language:    Haskell2010
