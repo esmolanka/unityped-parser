@@ -1,9 +1,12 @@
 unityped-parser
 ===============
 
-[experiment] Parser from unityped data representation to Haskell data structure
+It's experimental parser from unityped data representation like JSON
+to Haskell data structures. But main goal is not performance but
+ability to track parsing errors, where they occur and what was
+expected to get.
 
-Outputs verbose error messages like the following:
+It outputs verbose error messages like the following:
 ```
 *Test> parseIO pFooX2orBuqzFixx testVal1
 Failure at @ Dict
@@ -22,7 +25,14 @@ Failure at @ Dict
                   required .Bazz } }
 ```
 
+Please see `Test.hs` for details.
+
 There are simple rules:
-  1. `Monad` instance defines *then* behaviour. So `a >>= b` produces either error message of parser `a` or message of parser `b`, depending on which one is failing.
-  2. `Applicative` instance defines *simultaneously* behaviour. So something like `(,,) <$> a <*> b <*> c` will produce up to 3 error messages for each failing parser, combined with `and` operation.
-  3. `Alternative` instance defines *one-of* behaviour. So `a <|> b <|> c` will produce 3 error messages, combined with `or` operation.
+  1. `Monad` instance defines *then* behaviour. So `a >>= b` produces
+     either error message of parser `a` or message of parser `b`, depending
+     on which one is failing, but not both.
+  2. `Applicative` instance defines *simultaneously* behaviour. So
+     something like `(,,) <$> a <*> b <*> c` will produce up to 3 error
+     messages for each failing parser, combined with `and` operation.
+  3. `Alternative` instance defines *choose* behaviour. So `a <|> b <|> c`
+     will produce 3 error messages, combined with `or` operation.
