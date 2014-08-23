@@ -10,7 +10,7 @@ instance Pretty Qualifier where
   pretty (InObj i) = pretty i
   pretty (InField f) = dot <> text f
   pretty (InColumn c) = colon <> text c
-  pretty (AtIndex i) = int i
+  pretty (AtIndex i) = brackets (int i)
 
 instance Pretty Identifier where
   pretty (Id s) = text s
