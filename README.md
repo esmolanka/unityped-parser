@@ -9,42 +9,36 @@ Example:
 
 ```haskell
 -- ## Alternative + Applicative example
--- {"base": 10, "a-side": 5, "angle": 0.8}
+-- {"a-side": 5, "angle": 0.8}
 
 triangle :: Value
 triangle = iDict
-  [ "base" :*: iDouble 10
-  , "a-side" :*: iDouble 2
-  , "angle" :*: iDouble 0.8
+  [ "a-side" .= (2.0 :: Double)
+  , "angle"  .= iDouble 0.8 -- BTW, this notation is also valid
   ]
 
 pTriangleArea :: AnnotatedValue -> Parser Double
-pTriangleArea obj = pFromBaseAndHeight obj <|> pFromSidesAndAngle obj
+pTriangleArea = withDict (\d -> pFromBaseAndHeight d <|> pFromSidesAndAngle d)
   where
     fromBaseAndHeight :: Double -> Double -> Double
     fromBaseAndHeight b h = b * h / 2
 
-    pFromBaseAndHeight = withDict $ \d -> fromBaseAndHeight <$> (d .: "base")
-                                                            <*> (d .: "height")
+    pFromBaseAndHeight d = fromBaseAndHeight <$> (d .: "base")
+                                             <*> (d .: "height")
 
     fromSidesAndAngle:: Double -> Double -> Double -> Double
     fromSidesAndAngle a b alpha = a * b * sin alpha / 2
 
-    pFromSidesAndAngle = withDict $ \d -> fromSidesAndAngle <$> (d .: "a-side")
-                                                            <*> (d .: "b-side")
-                                                            <*> (d .: "alpha")
+    pFromSidesAndAngle d = fromSidesAndAngle <$> (d  .: "a-side")
+                                             <*> (d  .: "b-side")
+                                             <*> (d .?: "angle" .?= pi / 4)
+                                                 -- default angle is 45 deg
 
-testTriangleArea :: IO ()
-testTriangleArea = do
-  parseIO pTriangleArea triangle
-
--- Outputs:
--- > Failure at @
--- >            { at @ Dict
--- >                 required .height or
--- >              at @ Dict
--- >                 { required .b-side and
--- >                   required .alpha } }
+-- ghci> parseIO pTriangleArea triangle
+-- Failure at @ Dict
+--            { { required .base and
+--                required .height } or
+--              required .b-side }
 ```
 
 Please see `Test.hs` for details.

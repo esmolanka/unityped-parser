@@ -10,11 +10,8 @@ import Data.Unityped
 -- ## Simple example
 -- {"Hello": "World"}
 
--- For sake of simplicity, we won't use any clever Value construction
--- techniques, we'll construct the dictionary manually.
-
 helloWorldDict :: Value
-helloWorldDict = iDict [ ("Hello" :*: iString "World") ]
+helloWorldDict = iDict [ ("Hello" .= "World") ]
 
 pHelloWhat :: AnnotatedValue -> Parser String
 pHelloWhat obj = ("We need to say hello to "++) <$> withDict (withField "Hello" parseValue) obj
@@ -34,10 +31,7 @@ testHelloWorld = do
 -- {"Greetings": ["John", "Bob", "Alice"]}
 
 greetingsDict :: Value
-greetingsDict = iDict [ ("Greetings" :*: iArr [ iString "John"
-                                              , iString "Bob"
-                                              , iString "Alice"
-                                              ] ) ]
+greetingsDict = iDict [ ("Greetings" .= ["John", "Bob", "Alice"]) ]
 
 -- We can return unityped value from our parser, but it'll be
 -- annotated with its position in input structure, so even if you
@@ -67,11 +61,8 @@ testGreeting = do
 greetingsDictWithIndex :: Value
 greetingsDictWithIndex =
   iDict
-    [ "Index" :*: iInt 2
-    , "Greetings" :*: iArr [ iString "John"
-                           , iString "Bob"
-                           , iString "Alice"
-                           ]
+    [ "Index"     .= (2 :: Int)
+    , "Greetings" .= ["John", "Bob", "Alice"]
     ]
 
 pNthPerson :: Int -> AnnotatedValue -> Parser String
@@ -88,30 +79,29 @@ testContextDependentGreeting = do
   parseIO pContextDependentGreeting greetingsDictWithIndex
 
 -- ## Alternative + Applicative example
--- {"base": 10, "a-side": 5, "angle": 0.8}
+-- {"a-side": 5, "angle": 0.8}
 
 triangle :: Value
 triangle = iDict
-  [ "base" :*: iDouble 10
-  , "a-side" :*: iDouble 2
-  , "angle" :*: iDouble 0.8
+  [ "a-side" .= (2.0 :: Double)
+  , "angle"  .= iDouble 0.8 -- BTW, this notation is also valid
   ]
 
 pTriangleArea :: AnnotatedValue -> Parser Double
-pTriangleArea obj = pFromBaseAndHeight obj <|> pFromSidesAndAngle obj
+pTriangleArea = withDict (\d -> pFromBaseAndHeight d <|> pFromSidesAndAngle d)
   where
     fromBaseAndHeight :: Double -> Double -> Double
     fromBaseAndHeight b h = b * h / 2
 
-    pFromBaseAndHeight = withDict $ \d -> fromBaseAndHeight <$> (d .: "base")
-                                                            <*> (d .: "height")
+    pFromBaseAndHeight d = fromBaseAndHeight <$> (d .: "base")
+                                             <*> (d .: "height")
 
     fromSidesAndAngle:: Double -> Double -> Double -> Double
     fromSidesAndAngle a b alpha = a * b * sin alpha / 2
 
-    pFromSidesAndAngle = withDict $ \d -> fromSidesAndAngle <$> (d .: "a-side")
-                                                            <*> (d .: "b-side")
-                                                            <*> (d .: "alpha")
+    pFromSidesAndAngle d = fromSidesAndAngle <$> (d  .: "a-side")
+                                             <*> (d  .: "b-side")
+                                             <*> (d .?: "angle" .?= pi / 4)
 
 testTriangleArea :: IO ()
 testTriangleArea = do
@@ -121,18 +111,18 @@ testTriangleArea = do
 -- ## Messy parser examples
 
 tbl1 :: Value
-tbl1 = iTable "XYTable" [ "X" :|: xcol
-                        , "Y" :|: ycol
+tbl1 = iTable "XYTable" [ "X" .| xcol
+                        , "Y" .| ycol
                         ]
-  where xcol = map toValue ( [10, 20, 30] :: [Int] )
+  where xcol = [10, 20, 30] :: [Int]
         ycol = [iString "10", iDouble 3.14, iString "30"]
 
 val1 :: Value
-val1 = iDict [ "Foo" :*: tbl1
-             , "Fooo" :*: tbl1
-             , "Bar" :*: iString "BAR!"
-             , "Baz" :*: iArr [iInt 10, iDouble 20, iInt 30]
-             , "Buqz" :*: iDict []
+val1 = iDict [ "Foo"  .= tbl1
+             , "Fooo" .= tbl1
+             , "Bar"  .= iString "BAR!"
+             , "Baz"  .= [iInt 10, iDouble 20, iInt 30]
+             , "Buqz" .= iDict []
              ]
 
 fun4 :: String -> Double -> Int -> Int -> Int
@@ -160,12 +150,18 @@ pFooX2orBuqzFixx = withDict (\d -> fooX2 d <|> buqzFixx d)
 
 
 someComplexVal :: Value
-someComplexVal = toValue [ ("N", iInt 5)
-                         , ("Hello", hello)
-                         , ("World", world)
-                         ]
-  where hello = toValue [ ("Y", 10 :: Int) ]
-        world = toValue [ 10 :: Int, 20, 30, 40 ]
+someComplexVal =
+  iDict [ ("N"     .= iInt 5)
+        , ("Hello" .= hello)
+        , ("World" .= world)
+        ]
+  where
+    -- "hello" will be transformed to Dict
+    hello = [ ("Y", iInt 10)
+            , ("Z", iInt 20)
+            ]
+    -- and "world" to Arr
+    world = [ 10 :: Int, 20, 30, 40 ]
 
 pSomeComplex :: AnnotatedValue -> Parser Int
 pSomeComplex v = do

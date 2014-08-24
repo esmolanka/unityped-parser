@@ -1,8 +1,40 @@
 
 module Data.Unityped
-  ( module Data.Unityped.Value
+  ( iDict
+  , iTable
+  , iArr
+  , iString
+  , iInt
+  , iDouble
+  , iBool
+  , PairF
+  , ColumnF
+  , ValueF
+  , Value
+  , AnnotatedValue
+  , Pair
+  , AnnotatedPair
+  , Column
+  , AnnotatedColumn
+  , withPos
+  , withDict
+  , withField
+  , withFields
+  , withTable
+  , withTableLike
+  , withColumn
+  , withColumns
+  , withArr
+  , withElem
+  , withElems
+  , withStr
+  , withInt
+  , withDouble
+  , withBool
+  , parse
   , module Data.Unityped.Class
   ) where
 
+import Control.Monad.UnitypedParser
 import Data.Unityped.Value
 import Data.Unityped.Class

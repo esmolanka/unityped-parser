@@ -5,40 +5,7 @@
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE DeriveFoldable #-}
 
-module Data.Unityped.Value
-  ( iDict
-  , iTable
-  , iArr
-  , iString
-  , iInt
-  , iDouble
-  , iBool
-  , PairF (..)
-  , ColumnF (..)
-  , ValueF
-  , Value
-  , AnnotatedValue
-  , Pair
-  , AnnotatedPair
-  , Column
-  , AnnotatedColumn
-  , withPos
-  , withDict
-  , withField
-  , withFields
-  , withTable
-  , withTableLike
-  , withColumn
-  , withColumns
-  , withArr
-  , withElem
-  , withElems
-  , withStr
-  , withInt
-  , withDouble
-  , withBool
-  , parse
-  ) where
+module Data.Unityped.Value where
 
 import Control.Applicative
 import Control.Monad.Reader

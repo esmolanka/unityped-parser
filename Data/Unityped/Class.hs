@@ -22,11 +22,32 @@ class FromValue a where
 class ToValue a where
   toValue :: a -> Value
 
+infix 6 .:
 (.:) :: (FromValue a) => [AnnotatedPair] -> String -> Parser a
 (.:) pairs key = withField key parseValue pairs
 
+infix 6 .?:
+(.?:) :: (FromValue a) => [AnnotatedPair] -> String -> Parser (Maybe a)
+(.?:) pairs key = (Just <$> withField key parseValue pairs) <|> pure Nothing
+
+infix 5 .?=
+(.?=) :: Parser (Maybe a) -> a -> Parser a
+(.?=) p def =
+  p >>= \a -> case a of
+    Nothing -> return def
+    Just a  -> return a
+
+infix 6 .|:
 (.|:) :: (FromValue a) => [AnnotatedColumn] -> String -> Parser [a]
 (.|:) cols key = withColumn key (mapM parseValue) cols
+
+infix 3 .=
+(.=) :: (ToValue a) => String -> a -> Pair
+(.=) key value = key :*: (toValue value)
+
+infix 3 .|
+(.|) :: (ToValue a) => String -> [a] -> Column
+(.|) key values = key :|: map toValue values
 
 instance ToValue Value where
   toValue = id
