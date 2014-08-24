@@ -110,9 +110,11 @@ instance MonadError Failure Parser where
   throwError fs = do
     pos <- ask
     Parser $ throwError (FailureReason pos fs)
-  catchError p f = case runParser p of
-                     Right a -> return a
-                     Left (FailureReason _ fs) -> f fs
+  catchError p f = do
+    pos <- ask
+    case runParser' pos p of
+      Success a -> return a
+      Failure (FailureReason _ fs) -> f fs
 
 instance Applicative Parser where
   pure = return
@@ -120,7 +122,7 @@ instance Applicative Parser where
     pos <- ask
     let fa' = runReaderT (unParser fa) pos
     let b'  = runReaderT (unParser b) pos
-    Parser (ReaderT (\_ -> apInContext (Just pos) fa' b'))
+    mkParser (\_ -> apInContext (Just pos) fa' b')
 
 instance Alternative Parser where
   empty = throwError (ParseError "empty")
@@ -128,15 +130,21 @@ instance Alternative Parser where
     pos <- ask
     let a' = runReaderT (unParser a) pos
     let b' = runReaderT (unParser b) pos
-    Parser (ReaderT (\_ -> altInContext (Just pos) a' b'))
+    mkParser (\_ -> altInContext (Just pos) a' b')
 
 parse :: (Annotatible f) => (Annotated f -> Parser a) -> Raw f -> Either FailureReason a
 parse p = runParser . p . annotate
 
+runParser' :: Position -> Parser a -> Result a
+runParser' p = flip runReaderT p . unParser
+
 runParser :: Parser a -> Either FailureReason a
-runParser = unResult . flip runReaderT [InObj (Id "@")] . unParser
-  where unResult (Success a) = Right a
+runParser = unResult . runParser' [InObj (Id "@")]
+  where unResult (Success a)      = Right a
         unResult (Failure reason) = Left reason
+
+mkParser :: (Position -> Result a) -> Parser a
+mkParser fr = Parser (ReaderT fr)
 
 class GetId a where
   getId :: a -> Identifier

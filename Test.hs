@@ -117,6 +117,9 @@ testTriangleArea :: IO ()
 testTriangleArea = do
   parseIO pTriangleArea triangle
 
+--------------------------------------------------------------------------------
+-- ## Messy parser examples
+
 tbl1 :: Value
 tbl1 = iTable "XYTable" [ "X" :|: xcol
                         , "Y" :|: ycol
