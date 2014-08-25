@@ -173,8 +173,6 @@ dive q = local (q :)
 jump :: Position -> Parser a -> Parser a
 jump pos = local (const pos)
 
--- Annotations
-
 class Annotatible f where
   annotate :: Raw f -> Annotated f
   unannotate :: Annotated f -> Raw f

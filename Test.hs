@@ -107,6 +107,38 @@ testTriangleArea :: IO ()
 testTriangleArea = do
   parseIO pTriangleArea triangle
 
+-- ## Parsing and validating triangle, using FromValue typeclass
+
+triangle2 :: Value
+triangle2 = iDict
+  [ "a-side" .= (2.0 :: Double)
+  , "b-side" .= (4.0 :: Double)
+  , "angle"  .= (0.0 :: Double)
+  ]
+
+data Triangle = Triangle
+  { aSide :: Double
+  , bSide :: Double
+  , alpha :: Double
+  } deriving (Show)
+
+instance FromValue Triangle where
+  parseValue = withDict pFromSidesAndAngle
+    where
+      pFromSidesAndAngle d = do
+        (a,b,alpha) <- (,,) <$> (d  .: "a-side")
+                            <*> (d  .: "b-side")
+                            <*> (d .?: "angle" .?= pi / 4)
+        when (alpha <= 0 || alpha >= pi) $
+             parseError "Angle should be in range (0, pi)"
+        when (a < 0) $ parseError "Side A has negative length"
+        when (b < 0) $ parseError "Side B has negative length"
+        return $ Triangle a b alpha
+
+testTriangle :: IO ()
+testTriangle = do
+  parseIO (parseValue ::AnnotatedValue -> Parser Triangle) triangle2
+
 --------------------------------------------------------------------------------
 -- ## Messy parser examples
 
