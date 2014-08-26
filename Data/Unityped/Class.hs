@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE OverlappingInstances #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Data.Unityped.Class where
 
@@ -22,13 +23,23 @@ class FromValue a where
 class ToValue a where
   toValue :: a -> Value
 
-infix 6 .:
-(.:) :: (FromValue a) => [AnnotatedPair] -> String -> Parser a
-(.:) pairs key = withField key parseValue pairs
+class Indexable a where
+  (.:)  :: (FromValue r) => a -> String -> Parser r
+  infixl 6 .:
+  (.?:) :: (FromValue r) => a -> String -> Parser (Maybe r)
+  infixl 6 .?:
 
-infix 6 .?:
-(.?:) :: (FromValue a) => [AnnotatedPair] -> String -> Parser (Maybe a)
-(.?:) pairs key = (Just <$> withField key parseValue pairs) <|> pure Nothing
+instance Indexable [AnnotatedPair] where
+  (.:) pairs key = withField key parseValue pairs
+  (.?:) pairs key = (Just <$> withField key parseValue pairs) <|> pure Nothing
+
+instance Indexable AnnotatedValue where
+  (.:) d key = withDict (withField key parseValue) d
+  (.?:) d key = (Just <$> withDict (withField key parseValue) d) <|> pure Nothing
+
+instance (a ~ [AnnotatedPair]) => Indexable (Parser a) where
+  (.:) ppairs key = ppairs >>= \pairs -> withField key parseValue pairs
+  (.?:) ppairs key = ppairs >>= (\pairs -> (Just <$> withField key parseValue pairs) <|> pure Nothing)
 
 infix 5 .?=
 (.?=) :: Parser (Maybe a) -> a -> Parser a
@@ -51,6 +62,12 @@ infix 3 .|
 
 instance ToValue Value where
   toValue = id
+
+instance FromValue [AnnotatedPair] where
+  parseValue = withDict return
+
+instance ToValue [Pair] where
+  toValue = iDict
 
 instance FromValue Int where
   parseValue = withInt pure

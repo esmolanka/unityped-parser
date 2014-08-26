@@ -139,6 +139,22 @@ testTriangle :: IO ()
 testTriangle = do
   parseIO (parseValue ::AnnotatedValue -> Parser Triangle) triangle2
 
+-- ## More dictionary accessors
+
+nestedDictionary :: Value
+nestedDictionary = iDict ["Foo" .= iDict ["Bar" .= iDict ["Baz" .= iInt 10]]]
+
+pFooBarBaz :: AnnotatedValue -> Parser Int
+pFooBarBaz d = d .: "Foo" .: "Bar" .: "Baz"
+
+pFooBarQuux :: AnnotatedValue -> Parser Int
+pFooBarQuux d = d .: "Foo" .: "Bar" .?: "Quux" .?= (-1 :: Int)
+
+testNestedDictionary :: IO ()
+testNestedDictionary = do
+  parseIO pFooBarBaz nestedDictionary
+  parseIO pFooBarQuux nestedDictionary
+
 --------------------------------------------------------------------------------
 -- ## Messy parser examples
 
