@@ -249,7 +249,9 @@ main = do
   testGreeting
   testContextDependentGreeting
   testTriangleArea
-
+  testTriangle
+  testNestedDictionary
+  testLensLike
   parseIO pFooX2orBuqzFixx val1
   parseIO pSomeComplex someComplexVal
   parseIO parser2 someComplexVal
