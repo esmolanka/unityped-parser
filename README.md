@@ -61,7 +61,9 @@ implement `Functor`, `Traversable`, and `Foldable` instances.
 
 ### Other nice examples
 
-```
+```haskell
+-- ## Smart getters example
+
 dictWithTable :: Value
 dictWithTable = iDict
   [ "SomeTable" .= iTable "TBL"
@@ -79,14 +81,13 @@ lensLike2 v = v .: "SomeTable" .|: "X" .!! 2
 lensLike3 :: AnnotatedValue -> ParseM String
 lensLike3 v = v .: "SomeTable" .|: "S" .!! 2
 
-testLensLike :: IO ()
-testLensLike = parseIO (\v -> (++) <$> lensLike3 v
-                                   <*> ((show <$> lensLike1 v) <|> lensLike2 v))
-                       dictWithTable
+together :: AnnotatedValue -> ParseM String
+together v = (++) <$> lensLike3 v
+                  <*> ((show <$> lensLike1 v) <|> lensLike2 v))
 
+-- ghci> parseIO together dictWithTable
 -- Failure:
 -- @ Dict .SomeTable Table{TBL} { required :S and
 --                                :X [2] { expected Int, got Double or
 --                                         expected String, got Double } }
-
 ```
