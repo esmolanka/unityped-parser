@@ -33,8 +33,8 @@ instance HasKey [AnnotatedPair] where
 instance HasKey AnnotatedValue where
   (.:) d key = withDict (withField key parseValue) d
 
-instance (a ~ [AnnotatedPair]) => HasKey (ParseM a) where
-  (.:) ppairs key = ppairs >>= \pairs -> withField key parseValue pairs
+instance (a ~ AnnotatedValue) => HasKey (ParseM a) where
+  (.:) ppairs key = ppairs >>= withDict (withField key parseValue)
 
 infixl 6 .?:
 (.?:) :: (HasKey a, FromValue r) => a -> String -> ParseM (Maybe r)
@@ -47,9 +47,31 @@ infix 5 .?=
     Nothing -> return def
     Just a  -> return a
 
-infix 6 .|:
-(.|:) :: (FromValue a) => [AnnotatedColumn] -> String -> ParseM [a]
-(.|:) cols key = withColumn key (mapM parseValue) cols
+class HasColumn a where
+  (.|:) :: (FromValue r) => a -> String -> ParseM [r]
+  infixl 6 .|:
+
+instance HasColumn [AnnotatedColumn] where
+  (.|:) cols key = withColumn key (mapM parseValue) cols
+
+instance HasColumn AnnotatedValue where
+  (.|:) val key = withTableLike (withColumn key (mapM parseValue)) val
+
+instance (a ~ AnnotatedValue) => HasColumn (ParseM a) where
+  (.|:) pval key = pval >>= withTableLike (withColumn key (mapM parseValue))
+
+class Indexable a where
+  (.!!) :: (FromValue r) => a -> Int -> ParseM r
+  infixl 6 .!!
+
+instance Indexable AnnotatedValue where
+  (.!!) arr n = withArr (\els -> withElem n parseValue els) arr
+
+instance Indexable [AnnotatedValue] where
+  (.!!) els n = withElem n parseValue els
+
+instance (a ~ [AnnotatedValue]) => Indexable (ParseM a) where
+  (.!!) pval n = pval >>= withElem n parseValue
 
 infix 3 .=
 (.=) :: (ToValue a) => String -> a -> Pair
@@ -62,11 +84,8 @@ infix 3 .|
 instance ToValue Value where
   toValue = id
 
-instance FromValue [AnnotatedPair] where
-  parseValue = withDict return
-
-instance ToValue [Pair] where
-  toValue = iDict
+instance FromValue AnnotatedValue where
+  parseValue = return
 
 instance FromValue Int where
   parseValue = withInt pure

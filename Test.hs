@@ -156,6 +156,31 @@ testNestedDictionary = do
   parseIO pFooBarQuux nestedDictionary
 
 --------------------------------------------------------------------------------
+-- ## Nice stuff
+
+dictWithTable :: Value
+dictWithTable = iDict
+  [ "SomeTable" .= iTable "TBL"
+    [ "X" .| [1 :: Double, 2, 3]
+    , "Z" .| ["One", "Two", "Three"]
+    ]
+  ]
+
+lensLike1 :: AnnotatedValue -> ParseM Int
+lensLike1 v = v .: "SomeTable" .|: "X" .!! 2
+
+lensLike2 :: AnnotatedValue -> ParseM String
+lensLike2 v = v .: "SomeTable" .|: "X" .!! 2
+
+lensLike3 :: AnnotatedValue -> ParseM String
+lensLike3 v = v .: "SomeTable" .|: "S" .!! 2
+
+testLensLike :: IO ()
+testLensLike = parseIO (\v -> (++) <$> lensLike3 v
+                                   <*> ((show <$> lensLike1 v) <|> lensLike2 v))
+                       dictWithTable
+
+--------------------------------------------------------------------------------
 -- ## Messy parser examples
 
 tbl1 :: Value

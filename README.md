@@ -35,10 +35,10 @@ pTriangleArea = withDict (\d -> pFromBaseAndHeight d <|> pFromSidesAndAngle d)
                                                  -- default angle is 45 deg
 
 -- ghci> parseIO pTriangleArea triangle
--- Failure at @ Dict
---            { { required .base and
---                required .height } or
---              required .b-side }
+-- Failure:
+-- @ Dict { { required .base and
+--            required .height } or
+--          required .b-side }
 ```
 
 Please see `Test.hs` for details.
@@ -58,3 +58,35 @@ does not depend on implementation of value type, so it is easy to plug
 your unityped values to the parser. But the main requirement to that
 data type is it should be defined in unfixed fashion and should
 implement `Functor`, `Traversable`, and `Foldable` instances.
+
+### Other nice examples
+
+```
+dictWithTable :: Value
+dictWithTable = iDict
+  [ "SomeTable" .= iTable "TBL"
+    [ "X" .| [1 :: Double, 2, 3]
+    , "Z" .| ["One", "Two", "Three"]
+    ]
+  ]
+
+lensLike1 :: AnnotatedValue -> ParseM Int
+lensLike1 v = v .: "SomeTable" .|: "X" .!! 2
+
+lensLike2 :: AnnotatedValue -> ParseM String
+lensLike2 v = v .: "SomeTable" .|: "X" .!! 2
+
+lensLike3 :: AnnotatedValue -> ParseM String
+lensLike3 v = v .: "SomeTable" .|: "S" .!! 2
+
+testLensLike :: IO ()
+testLensLike = parseIO (\v -> (++) <$> lensLike3 v
+                                   <*> ((show <$> lensLike1 v) <|> lensLike2 v))
+                       dictWithTable
+
+-- Failure:
+-- @ Dict .SomeTable Table{TBL} { required :S and
+--                                :X [2] { expected Int, got Double or
+--                                         expected String, got Double } }
+
+```
