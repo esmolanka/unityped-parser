@@ -23,23 +23,22 @@ class FromValue a where
 class ToValue a where
   toValue :: a -> Value
 
-class Indexable a where
+class HasKey a where
   (.:)  :: (FromValue r) => a -> String -> ParseM r
   infixl 6 .:
-  (.?:) :: (FromValue r) => a -> String -> ParseM (Maybe r)
-  infixl 6 .?:
 
-instance Indexable [AnnotatedPair] where
+instance HasKey [AnnotatedPair] where
   (.:) pairs key = withField key parseValue pairs
-  (.?:) pairs key = (Just <$> withField key parseValue pairs) <|> pure Nothing
 
-instance Indexable AnnotatedValue where
+instance HasKey AnnotatedValue where
   (.:) d key = withDict (withField key parseValue) d
-  (.?:) d key = (Just <$> withDict (withField key parseValue) d) <|> pure Nothing
 
-instance (a ~ [AnnotatedPair]) => Indexable (ParseM a) where
+instance (a ~ [AnnotatedPair]) => HasKey (ParseM a) where
   (.:) ppairs key = ppairs >>= \pairs -> withField key parseValue pairs
-  (.?:) ppairs key = ppairs >>= (\pairs -> (Just <$> withField key parseValue pairs) <|> pure Nothing)
+
+infixl 6 .?:
+(.?:) :: (HasKey a, FromValue r) => a -> String -> ParseM (Maybe r)
+(.?:) pairs key = (Just <$> (pairs .: key)) <|> pure Nothing
 
 infix 5 .?=
 (.?=) :: ParseM (Maybe a) -> a -> ParseM a
