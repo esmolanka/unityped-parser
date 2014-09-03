@@ -93,14 +93,14 @@ instance GetId (ValueF f)  where
   getId (DblLit _)    = Id "Double"
   getId (BoolLit _)   = Id "Bool"
 
-withPos :: AnnotatedValue -> (ValueF (AnnotatedValue) -> Parser a) -> Parser a
+withPos :: AnnotatedValue -> (ValueF (AnnotatedValue) -> ParseM a) -> ParseM a
 withPos (pos :< obj) f = jump pos (f obj)
 
-withDict :: ([AnnotatedPair] -> Parser a) -> AnnotatedValue -> Parser a
+withDict :: ([AnnotatedPair] -> ParseM a) -> AnnotatedValue -> ParseM a
 withDict f (pos :< o@(Dict pairs)) = jump pos $ dive (getIn o) (f pairs)
 withDict _ (pos :< other)          = jump pos $ expectationError (Id "Dict") other
 
-withField :: String -> (AnnotatedValue -> Parser a) -> [AnnotatedPair] -> Parser a
+withField :: String -> (AnnotatedValue -> ParseM a) -> [AnnotatedPair] -> ParseM a
 withField key p pairs =
   case M.lookup key pairs' of
     Nothing -> expectationErrorField (Id $ "." ++ key)
@@ -108,21 +108,21 @@ withField key p pairs =
   where
     pairs' = M.fromList $ map (\(k :*: v) -> (k, v)) pairs
 
-withFields :: (AnnotatedValue -> Parser a) -> [AnnotatedPair] -> Parser [(String, a)]
+withFields :: (AnnotatedValue -> ParseM a) -> [AnnotatedPair] -> ParseM [(String, a)]
 withFields p = mapM (\(k :*: v) -> (k,) <$> dive (InField k) (p v))
 
-withTable :: String -> ([AnnotatedColumn] -> Parser a) -> AnnotatedValue -> Parser a
+withTable :: String -> ([AnnotatedColumn] -> ParseM a) -> AnnotatedValue -> ParseM a
 withTable cls' f (pos :< o@(Table cls cols)) = jump pos $ dive (getIn o) (check *> f cols)
   where check = if cls' == cls then pure () else expectationErrorStr (Id $ "Class=" ++ cls') (Id $ "Class="++cls)
 withTable cls' _ (pos :< other) = jump pos $ expectationError (Id $ "Table{Class="++cls'++"}") other
 
-withTableLike :: ([AnnotatedColumn] -> Parser a) -> AnnotatedValue -> Parser a
+withTableLike :: ([AnnotatedColumn] -> ParseM a) -> AnnotatedValue -> ParseM a
 withTableLike f (pos :< o@(Table _ cols)) = jump pos $ dive (getIn o) (f cols)
 withTableLike f (pos :< o@(Dict pairs))   = jump pos $ dive (getIn o) (mapM (\(k :*: v) -> (k :|:) <$> withArr return v) pairs >>= f)
 withTableLike _ (pos :< other) = jump pos ( expectationError (Id $ "Table{Class=*}") other <|>
                                             expectationError (Id $ "Dict") other )
 
-withColumn :: String -> ([AnnotatedValue] -> Parser a) -> [AnnotatedColumn] -> Parser a
+withColumn :: String -> ([AnnotatedValue] -> ParseM a) -> [AnnotatedColumn] -> ParseM a
 withColumn key p cols =
   case M.lookup key cols' of
     Nothing -> expectationErrorField (Id $ ":" ++ key)
@@ -130,32 +130,32 @@ withColumn key p cols =
   where
     cols' = M.fromList $ map (\(k :|: v) -> (k, v)) cols
 
-withColumns :: ([AnnotatedValue] -> Parser a) -> [AnnotatedColumn] -> Parser [(String, a)]
+withColumns :: ([AnnotatedValue] -> ParseM a) -> [AnnotatedColumn] -> ParseM [(String, a)]
 withColumns p = mapM (\(k :|: v) -> (k,) <$> dive (InColumn k) (p v))
 
-withArr :: ([AnnotatedValue] -> Parser a) -> AnnotatedValue -> Parser a
+withArr :: ([AnnotatedValue] -> ParseM a) -> AnnotatedValue -> ParseM a
 withArr f (pos :< o@(Arr vs)) = jump pos $ dive (getIn o) (f vs)
 withArr _ (pos :< other)      = jump pos $ expectationError (Id "Arr") other
 
-withElem :: Int -> (AnnotatedValue -> Parser a) -> [AnnotatedValue] -> Parser a
+withElem :: Int -> (AnnotatedValue -> ParseM a) -> [AnnotatedValue] -> ParseM a
 withElem n p vs | n < length vs = dive (AtIndex n) (p (vs !! n))
                 | otherwise     = expectationErrorField (Id $ "[" ++ show n ++ "]")
 
-withElems :: (AnnotatedValue -> Parser a) -> [AnnotatedValue] -> Parser [a]
+withElems :: (AnnotatedValue -> ParseM a) -> [AnnotatedValue] -> ParseM [a]
 withElems p vs = mapM (\(n,v) -> dive (AtIndex n) (p v)) $ zip [0..] vs
 
-withStr :: (String -> Parser a) -> AnnotatedValue -> Parser a
+withStr :: (String -> ParseM a) -> AnnotatedValue -> ParseM a
 withStr f (pos :< StrLit s) = jump pos (f s)
 withStr _ (pos :< other)    = jump pos $ expectationError (Id "String") other
 
-withInt :: (Int -> Parser a) -> AnnotatedValue -> Parser a
+withInt :: (Int -> ParseM a) -> AnnotatedValue -> ParseM a
 withInt f (pos :< IntLit s) = jump pos (f s)
 withInt _ (pos :< other)    = jump pos $ expectationError (Id "Int") other
 
-withDouble :: (Double -> Parser a) -> AnnotatedValue -> Parser a
+withDouble :: (Double -> ParseM a) -> AnnotatedValue -> ParseM a
 withDouble f (pos :< DblLit s) = jump pos (f s)
 withDouble _ (pos :< other)    = jump pos $ expectationError (Id "DblLit") other
 
-withBool :: (Bool -> Parser a) -> AnnotatedValue -> Parser a
+withBool :: (Bool -> ParseM a) -> AnnotatedValue -> ParseM a
 withBool f (pos :< (BoolLit s)) = jump pos (f s)
 withBool _ (pos :< other)       = jump pos $ expectationError (Id "BoolLit") other

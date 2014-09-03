@@ -13,10 +13,10 @@ import Data.Unityped
 helloWorldDict :: Value
 helloWorldDict = iDict [ ("Hello" .= "World") ]
 
-pHelloWhat :: AnnotatedValue -> Parser String
+pHelloWhat :: AnnotatedValue -> ParseM String
 pHelloWhat obj = ("We need to say hello to "++) <$> withDict (withField "Hello" parseValue) obj
 
-pGreetingsTo' :: AnnotatedValue -> Parser String
+pGreetingsTo' :: AnnotatedValue -> ParseM String
 pGreetingsTo' obj = ("We need to say hello to "++) <$> withDict (withField "Greetings" parseValue) obj
 
 testHelloWorld :: IO ()
@@ -37,13 +37,13 @@ greetingsDict = iDict [ ("Greetings" .= ["John", "Bob", "Alice"]) ]
 -- annotated with its position in input structure, so even if you
 -- defer parsing of that value, the error will contain correct
 -- position of value which parser was unable to process.
-pGreetingsTo :: AnnotatedValue -> Parser AnnotatedValue
+pGreetingsTo :: AnnotatedValue -> ParseM AnnotatedValue
 pGreetingsTo = withDict (withField "Greetings" return)
 
-pThirdPerson :: AnnotatedValue -> Parser String
+pThirdPerson :: AnnotatedValue -> ParseM String
 pThirdPerson = pGreetingsTo >=> withArr (withElem 2 parseValue)
 
-pFourthPerson :: AnnotatedValue -> Parser String
+pFourthPerson :: AnnotatedValue -> ParseM String
 pFourthPerson = pGreetingsTo >=> withArr (withElem 3 parseValue)
 
 testGreeting :: IO ()
@@ -65,10 +65,10 @@ greetingsDictWithIndex =
     , "Greetings" .= ["John", "Bob", "Alice"]
     ]
 
-pNthPerson :: Int -> AnnotatedValue -> Parser String
+pNthPerson :: Int -> AnnotatedValue -> ParseM String
 pNthPerson n = pGreetingsTo >=> withArr (withElem n parseValue)
 
-pContextDependentGreeting :: AnnotatedValue -> Parser String
+pContextDependentGreeting :: AnnotatedValue -> ParseM String
 pContextDependentGreeting obj = do
   n <- withDict (.: "Index") obj
   person <- pNthPerson n obj
@@ -87,7 +87,7 @@ triangle = iDict
   , "angle"  .= iDouble 0.8 -- BTW, this notation is also valid
   ]
 
-pTriangleArea :: AnnotatedValue -> Parser Double
+pTriangleArea :: AnnotatedValue -> ParseM Double
 pTriangleArea = withDict (\d -> pFromBaseAndHeight d <|> pFromSidesAndAngle d)
   where
     fromBaseAndHeight :: Double -> Double -> Double
@@ -137,17 +137,17 @@ instance FromValue Triangle where
 
 testTriangle :: IO ()
 testTriangle = do
-  parseIO (parseValue ::AnnotatedValue -> Parser Triangle) triangle2
+  parseIO (parseValue ::AnnotatedValue -> ParseM Triangle) triangle2
 
 -- ## More dictionary accessors
 
 nestedDictionary :: Value
 nestedDictionary = iDict ["Foo" .= iDict ["Bar" .= iDict ["Baz" .= iInt 10]]]
 
-pFooBarBaz :: AnnotatedValue -> Parser Int
+pFooBarBaz :: AnnotatedValue -> ParseM Int
 pFooBarBaz d = d .: "Foo" .: "Bar" .: "Baz"
 
-pFooBarQuux :: AnnotatedValue -> Parser Int
+pFooBarQuux :: AnnotatedValue -> ParseM Int
 pFooBarQuux d = d .: "Foo" .: "Bar" .?: "Quux" .?= (-1 :: Int)
 
 testNestedDictionary :: IO ()
@@ -176,7 +176,7 @@ val1 = iDict [ "Foo"  .= tbl1
 fun4 :: String -> Double -> Int -> Int -> Int
 fun4 = undefined
 
-parser2 :: AnnotatedValue -> Parser Int
+parser2 :: AnnotatedValue -> ParseM Int
 parser2 = withDict $ \d -> do
              (a,b,c) <-
                (,,) <$> withField "Fooo" (withTable "XYTable" (withColumn "Z" (withElem 1 parseValue))) d
@@ -184,7 +184,7 @@ parser2 = withDict $ \d -> do
                     <*> withField "Foo" (withTable "XZTable" (withColumn "X" (withElem 1 parseValue))) d
              return $ a + b + c
 
-pFooX2orBuqzFixx :: AnnotatedValue -> Parser Int
+pFooX2orBuqzFixx :: AnnotatedValue -> ParseM Int
 pFooX2orBuqzFixx = withDict (\d -> fooX2 d <|> buqzFixx d)
   where fooX2 = withField "Foo" (withTable "XYTable" (\cols -> x2 cols <|> y1 cols))
         x2 = withColumn "Z" (withElem 2 parseValue)
@@ -211,7 +211,7 @@ someComplexVal =
     -- and "world" to Arr
     world = [ 10 :: Int, 20, 30, 40 ]
 
-pSomeComplex :: AnnotatedValue -> Parser Int
+pSomeComplex :: AnnotatedValue -> ParseM Int
 pSomeComplex v = do
   n  <- flip withDict v $ (.: "N")
   v2 <- flip withDict v $ withField "Hello" return

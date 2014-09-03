@@ -12,21 +12,21 @@ import Control.Monad.UnitypedParser
 import Data.Unityped.Value
 
 class IsValue v where
-  runParserOn :: (Value -> Parser a) -> v -> Parser a
+  runParseMOn :: (Value -> ParseM a) -> v -> ParseM a
 
 instance IsValue Value where
-  runParserOn p v = p v
+  runParseMOn p v = p v
 
 class FromValue a where
-  parseValue :: AnnotatedValue -> Parser a
+  parseValue :: AnnotatedValue -> ParseM a
 
 class ToValue a where
   toValue :: a -> Value
 
 class Indexable a where
-  (.:)  :: (FromValue r) => a -> String -> Parser r
+  (.:)  :: (FromValue r) => a -> String -> ParseM r
   infixl 6 .:
-  (.?:) :: (FromValue r) => a -> String -> Parser (Maybe r)
+  (.?:) :: (FromValue r) => a -> String -> ParseM (Maybe r)
   infixl 6 .?:
 
 instance Indexable [AnnotatedPair] where
@@ -37,19 +37,19 @@ instance Indexable AnnotatedValue where
   (.:) d key = withDict (withField key parseValue) d
   (.?:) d key = (Just <$> withDict (withField key parseValue) d) <|> pure Nothing
 
-instance (a ~ [AnnotatedPair]) => Indexable (Parser a) where
+instance (a ~ [AnnotatedPair]) => Indexable (ParseM a) where
   (.:) ppairs key = ppairs >>= \pairs -> withField key parseValue pairs
   (.?:) ppairs key = ppairs >>= (\pairs -> (Just <$> withField key parseValue pairs) <|> pure Nothing)
 
 infix 5 .?=
-(.?=) :: Parser (Maybe a) -> a -> Parser a
+(.?=) :: ParseM (Maybe a) -> a -> ParseM a
 (.?=) p def =
   p >>= \a -> case a of
     Nothing -> return def
     Just a  -> return a
 
 infix 6 .|:
-(.|:) :: (FromValue a) => [AnnotatedColumn] -> String -> Parser [a]
+(.|:) :: (FromValue a) => [AnnotatedColumn] -> String -> ParseM [a]
 (.|:) cols key = withColumn key (mapM parseValue) cols
 
 infix 3 .=
