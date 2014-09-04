@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                unityped-parser
-version:             0.0.3
+version:             0.0.4
 synopsis:            Parser from unityped representation to Haskell data structures
 -- description:
 license:             PublicDomain
@@ -19,7 +19,12 @@ library
     Data.Unityped
     Control.Monad.UnitypedParser
 
-  -- other-modules:
+  other-modules:
+    Data.Unityped.Value
+    Data.Unityped.Class
+    Data.Unityped.Getters
+    Control.Monad.UnitypedParser.Parser
+    Control.Monad.UnitypedParser.Pretty
   -- other-extensions:
   build-depends:       base >=4.7 && <4.8, mtl, ansi-wl-pprint, containers, transformers, free, recursion-schemes
   -- hs-source-dirs:

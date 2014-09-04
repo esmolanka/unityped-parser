@@ -119,7 +119,7 @@ settle :: FailureTree -> Position -> FailureTree
 settle = foldr (\q -> Fix . Dive q)
 
 instance MonadError FailureTree ParseM where
-  throwError fs = mkParseM (\pos -> Failure $ settle fs (reverse pos))
+  throwError fs = mkParseM (Failure . settle fs . reverse)
   catchError p f = do
     pos <- ask
     case runParseM' pos p of

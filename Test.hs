@@ -11,7 +11,7 @@ import Data.Unityped
 -- {"Hello": "World"}
 
 helloWorldDict :: Value
-helloWorldDict = iDict [ ("Hello" .= "World") ]
+helloWorldDict = iDict ["Hello" .= "World"]
 
 pHelloWhat :: AnnotatedValue -> ParseM String
 pHelloWhat obj = ("We need to say hello to "++) <$> withDict (withField "Hello" parseValue) obj
@@ -31,7 +31,7 @@ testHelloWorld = do
 -- {"Greetings": ["John", "Bob", "Alice"]}
 
 greetingsDict :: Value
-greetingsDict = iDict [ ("Greetings" .= ["John", "Bob", "Alice"]) ]
+greetingsDict = iDict ["Greetings" .= ["John", "Bob", "Alice"] ]
 
 -- We can return unityped value from our parser, but it'll be
 -- annotated with its position in input structure, so even if you
@@ -49,10 +49,10 @@ pFourthPerson = pGreetingsTo >=> withArr (withElem 3 parseValue)
 testGreeting :: IO ()
 testGreeting = do
   putStrLn "Third person to greet is: "
-  parseIO (pThirdPerson) greetingsDict
+  parseIO pThirdPerson greetingsDict
 
   putStrLn "Fourth person to greet is: "
-  parseIO (pFourthPerson) greetingsDict
+  parseIO pFourthPerson greetingsDict
 
 -- ## Simple context dependent example
 -- { "Index": 2
@@ -75,7 +75,7 @@ pContextDependentGreeting obj = do
   return $ "Hello " ++ person ++ ". You're number " ++ show n ++ " (counting from zero ;))"
 
 testContextDependentGreeting :: IO ()
-testContextDependentGreeting = do
+testContextDependentGreeting =
   parseIO pContextDependentGreeting greetingsDictWithIndex
 
 -- ## Alternative + Applicative example
@@ -104,7 +104,7 @@ pTriangleArea = withDict (\d -> pFromBaseAndHeight d <|> pFromSidesAndAngle d)
                                              <*> (d .?: "angle" .?= pi / 4)
 
 testTriangleArea :: IO ()
-testTriangleArea = do
+testTriangleArea =
   parseIO pTriangleArea triangle
 
 -- ## Parsing and validating triangle, using FromValue typeclass
@@ -136,7 +136,7 @@ instance FromValue Triangle where
         return $ Triangle a b alpha
 
 testTriangle :: IO ()
-testTriangle = do
+testTriangle =
   parseIO (parseValue ::AnnotatedValue -> ParseM Triangle) triangle2
 
 -- ## More dictionary accessors
@@ -224,9 +224,9 @@ pFooX2orBuqzFixx = withDict (\d -> fooX2 d <|> buqzFixx d)
 
 someComplexVal :: Value
 someComplexVal =
-  iDict [ ("N"     .= iInt 5)
-        , ("Hello" .= hello)
-        , ("World" .= world)
+  iDict [ "N"     .= iInt 5
+        , "Hello" .= hello
+        , "World" .= world
         ]
   where
     -- "hello" will be transformed to Dict
@@ -238,10 +238,10 @@ someComplexVal =
 
 pSomeComplex :: AnnotatedValue -> ParseM Int
 pSomeComplex v = do
-  n  <- flip withDict v $ (.: "N")
-  v2 <- flip withDict v $ withField "Hello" return
-  v1 <- flip withDict v $ withField "World" return
-  (+) <$> (flip withArr v1 $ withElem n parseValue) <*> (flip withDict v2 $ \d -> (d .: "Foo") <|> (read <$> d .: "Bar"))
+  n  <- withDict (.: "N") v
+  v2 <- withDict (withField "Hello" return) v
+  v1 <- withDict (withField "World" return) v
+  (+) <$> withArr (withElem n parseValue) v1 <*> withDict (\d -> (d .: "Foo") <|> (read <$> d .: "Bar")) v2
 
 main :: IO ()
 main = do

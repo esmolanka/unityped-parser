@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE DeriveTraversable #-}
@@ -72,7 +71,7 @@ annotateColumn :: ColumnF (Reader Position (Cofree ValueF Position)) -> Reader P
 annotateColumn (k :|: rv) = fmap (k :|:) (local (InColumn k:) (annotateWithIndices rv))
 
 annotateWithIndices :: [Reader Position AnnotatedValue] -> Reader Position [AnnotatedValue]
-annotateWithIndices = sequence . map (\(i, r) -> local (AtIndex i:) r) . zip [0..]
+annotateWithIndices = mapM (\(i, r) -> local (AtIndex i:) r) . zip [0..]
 
 instance Annotatible ValueF where
   annotate root = runReader (cata alg root) [InObj (Id "@")]
@@ -92,9 +91,6 @@ instance GetId (ValueF f)  where
   getId (IntLit _)    = Id "Int"
   getId (DblLit _)    = Id "Double"
   getId (BoolLit _)   = Id "Bool"
-
-withPos :: AnnotatedValue -> (ValueF (AnnotatedValue) -> ParseM a) -> ParseM a
-withPos (pos :< obj) f = jump pos (f obj)
 
 withDict :: ([AnnotatedPair] -> ParseM a) -> AnnotatedValue -> ParseM a
 withDict f (pos :< o@(Dict pairs)) = jump pos $ dive (getIn o) (f pairs)
@@ -119,8 +115,8 @@ withTable cls' _ (pos :< other) = jump pos $ expectationError (Id $ "Table{Class
 withTableLike :: ([AnnotatedColumn] -> ParseM a) -> AnnotatedValue -> ParseM a
 withTableLike f (pos :< o@(Table _ cols)) = jump pos $ dive (getIn o) (f cols)
 withTableLike f (pos :< o@(Dict pairs))   = jump pos $ dive (getIn o) (mapM (\(k :*: v) -> (k :|:) <$> withArr return v) pairs >>= f)
-withTableLike _ (pos :< other) = jump pos ( expectationError (Id $ "Table{Class=*}") other <|>
-                                            expectationError (Id $ "Dict") other )
+withTableLike _ (pos :< other) = jump pos ( expectationError (Id "Table{Class=*}") other <|>
+                                            expectationError (Id "Dict") other )
 
 withColumn :: String -> ([AnnotatedValue] -> ParseM a) -> [AnnotatedColumn] -> ParseM a
 withColumn key p cols =
@@ -157,5 +153,5 @@ withDouble f (pos :< DblLit s) = jump pos (f s)
 withDouble _ (pos :< other)    = jump pos $ expectationError (Id "DblLit") other
 
 withBool :: (Bool -> ParseM a) -> AnnotatedValue -> ParseM a
-withBool f (pos :< (BoolLit s)) = jump pos (f s)
-withBool _ (pos :< other)       = jump pos $ expectationError (Id "BoolLit") other
+withBool f (pos :< BoolLit s) = jump pos (f s)
+withBool _ (pos :< other)     = jump pos $ expectationError (Id "BoolLit") other

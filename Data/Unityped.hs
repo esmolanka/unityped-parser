@@ -16,7 +16,6 @@ module Data.Unityped
   , AnnotatedPair
   , Column
   , AnnotatedColumn
-  , withPos
   , withDict
   , withField
   , withFields
@@ -33,8 +32,10 @@ module Data.Unityped
   , withBool
   , parse
   , module Data.Unityped.Class
+  , module Data.Unityped.Getters
   ) where
 
 import Control.Monad.UnitypedParser
 import Data.Unityped.Value
 import Data.Unityped.Class
+import Data.Unityped.Getters
