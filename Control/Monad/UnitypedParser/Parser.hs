@@ -18,11 +18,12 @@ import Data.Functor.Foldable
 
 data Identifier = Id { unId :: String } deriving (Show, Ord, Eq)
 
-data Qualifier = InObj Identifier
-               | InField String
-               | InColumn String
-               | AtIndex Int
-                 deriving (Show, Ord, Eq)
+data Qualifier
+  = InObj Identifier
+  | InField String
+  | InColumn String
+  | AtIndex Int
+    deriving (Show, Ord, Eq)
 
 data FailureTreeF e
   = And [e]
