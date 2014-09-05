@@ -88,14 +88,15 @@ triangle = iDict
   ]
 
 pTriangleArea :: AnnotatedValue -> ParseM Double
-pTriangleArea = withDict (\d -> label "from base and height" (pFromBaseAndHeight d)
-                            <|> label "from sides and angle" (pFromSidesAndAngle d))
+pTriangleArea = withDict (\d -> pFromBaseAndHeight d
+                            <|> pFromSidesAndAngle d) <?.> "triangle"
   where
     fromBaseAndHeight :: Double -> Double -> Double
     fromBaseAndHeight b h = b * h / 2
 
     pFromBaseAndHeight d = fromBaseAndHeight <$> (d .: "base")
                                              <*> (d .: "height")
+                                             <?> "from base and height"
 
     fromSidesAndAngle:: Double -> Double -> Double -> Double
     fromSidesAndAngle a b alpha = a * b * sin alpha / 2
@@ -103,7 +104,7 @@ pTriangleArea = withDict (\d -> label "from base and height" (pFromBaseAndHeight
     pFromSidesAndAngle d = fromSidesAndAngle <$> (d  .: "a-side")
                                              <*> (d  .: "b-side")
                                              <*> (d .?: "angle" .?= pi / 4)
-
+                                             <?> "from sides and angle"
 testTriangleArea :: IO ()
 testTriangleArea =
   parseIO pTriangleArea triangle
@@ -143,10 +144,10 @@ testTriangle =
 -- ## More dictionary accessors
 
 nestedDictionary :: Value
-nestedDictionary = iDict ["Foo" .= iDict ["Bar" .= iDict ["Baz" .= iInt 10]]]
+nestedDictionary = iDict ["Foo" .= iDict ["Bar" .= iDict ["Bax" .= iInt 10]]]
 
 pFooBarBaz :: AnnotatedValue -> ParseM Int
-pFooBarBaz d = d .: "Foo" .: "Bar" .: "Baz"
+pFooBarBaz d = d .: "Foo" .: "Bar" .: "Baz" <?> "foobarbaz"
 
 pFooBarQuux :: AnnotatedValue -> ParseM Int
 pFooBarQuux d = d .: "Foo" .: "Bar" .?: "Quux" .?= (-1 :: Int)

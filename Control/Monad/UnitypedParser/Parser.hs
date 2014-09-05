@@ -60,7 +60,7 @@ mergeFailureTrees mergeOp ltree rtree = go mergeOp ltree rtree
     orify  (_ :< Or nodes)  = nodes
     orify  other            = [other]
 
-    unify a b = map snd . takeWhile fst $ zipWith (\a b -> (a == b, a)) (reverse a) (reverse b)
+    unify a b = reverse . map snd . takeWhile fst $ zipWith (\a b -> (a == b, a)) (reverse a) (reverse b)
 
     eqQ (_ :< (Dive q1 _)) (_ :< (Dive q2 _)) = q1 == q2
     eqQ _ _ = False
@@ -176,6 +176,15 @@ jump pos = local (first (const pos))
 
 label :: String -> ParseM a -> ParseM a
 label s = local (second (Context s :))
+
+infixr 0 <?>
+
+(<?>) :: ParseM a -> String -> ParseM a
+(<?>) p msg = label msg p
+
+infixr 0 <?.>
+(<?.>) :: (b -> ParseM a) -> String -> b -> ParseM a
+(<?.>) p msg b = label msg (p b)
 
 class Annotatible f where
   annotate :: Raw f -> Annotated f
