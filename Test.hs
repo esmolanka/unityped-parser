@@ -169,13 +169,13 @@ dictWithTable = iDict
   ]
 
 lensLike1 :: AnnotatedValue -> ParseM Int
-lensLike1 v = v .: "SomeTable" .|: "X" .!! 2
+lensLike1 v = v .: "SomeTable" .|: "X" .!! 2 <?> "Parser1"
 
 lensLike2 :: AnnotatedValue -> ParseM String
-lensLike2 v = v .: "SomeTable" .|: "X" .!! 2
+lensLike2 v = v .: "SomeTable" .|: "X" .!! 2 <?> "Parser2"
 
 lensLike3 :: AnnotatedValue -> ParseM String
-lensLike3 v = v .: "SomeTable" .|: "S" .!! 2
+lensLike3 v = v .: "SomeTable" .|: "S" .!! 2 <?> "Parser3"
 
 testLensLike :: IO ()
 testLensLike = parseIO (\v -> (++) <$> lensLike3 v
@@ -204,7 +204,7 @@ fun4 :: String -> Double -> Int -> Int -> Int
 fun4 = undefined
 
 parser2 :: AnnotatedValue -> ParseM Int
-parser2 = withDict $ \d -> do
+parser2 = label2 "parser2" withDict $ \d -> do
              (a,b,c) <-
                (,,) <$> withField "Fooo" (withTable "XYTable" (withColumn "Z" (withElem 1 parseValue))) d
                     <*> withField "Baz" (withArr (withElem 1 (withDouble (return . fromIntegral . truncate)))) d
@@ -212,7 +212,7 @@ parser2 = withDict $ \d -> do
              return $ a + b + c
 
 pFooX2orBuqzFixx :: AnnotatedValue -> ParseM Int
-pFooX2orBuqzFixx = withDict (\d -> fooX2 d <|> buqzFixx d)
+pFooX2orBuqzFixx = label2 "pFooX2orBuqzFixx" withDict (\d -> fooX2 d <|> buqzFixx d)
   where fooX2 = withField "Foo" (withTable "XYTable" (\cols -> x2 cols <|> y1 cols))
         x2 = withColumn "Z" (withElem 2 parseValue)
         y1 = withColumn "Y" (withElem 1 parseValue)
@@ -239,7 +239,7 @@ someComplexVal =
     world = [ 10 :: Int, 20, 30, 40 ]
 
 pSomeComplex :: AnnotatedValue -> ParseM Int
-pSomeComplex v = do
+pSomeComplex v = label "pSomeComplex" $ do
   n  <- withDict (.: "N") v
   v2 <- withDict (withField "Hello" return) v
   v1 <- withDict (withField "World" return) v

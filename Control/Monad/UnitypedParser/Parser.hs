@@ -177,6 +177,12 @@ jump pos = local (first (const pos))
 label :: String -> ParseM a -> ParseM a
 label s = local (second (Context s :))
 
+label1 :: String -> (b -> ParseM a) -> b -> ParseM a
+label1 s f a = label s (f a)
+
+label2 :: String -> (c -> b -> ParseM a) -> c -> b -> ParseM a
+label2 s f a b = label s (f a b)
+
 infixr 0 <?>
 
 (<?>) :: ParseM a -> String -> ParseM a
