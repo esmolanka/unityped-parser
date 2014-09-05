@@ -7,6 +7,7 @@ module Control.Monad.UnitypedParser.Pretty
   where
 
 import System.IO
+import Control.Monad.Reader
 import Control.Arrow (left)
 import Control.Comonad.Cofree (Cofree (..))
 import Text.PrettyPrint.ANSI.Leijen as PP
@@ -25,19 +26,35 @@ instance Pretty Qualifier where
 instance Pretty Identifier where
   pretty (Id s) = text s
 
-ppInContext :: [Context] -> Doc -> Doc
-ppInContext [] doc = doc
-ppInContext (Context s : _) doc = vcat [green . brackets . text $ s, doc]
+ppInContext :: [Context] -> Doc -> Reader [Context] Doc
+ppInContext [] doc = return doc
+ppInContext (Context s : _) doc = do
+  upperContext <- ask
+  let doc' = vcat [green . brackets . text $ s, doc]
+  case upperContext of
+    [] -> return doc'
+    (Context z : _)
+      | s == z    -> return doc
+      | otherwise -> return doc'
 
 ppFailureTree :: FailureTree -> Doc
-ppFailureTree tree = "Failure:" <> linebreak <> cataAnn prettyAlg tree <> linebreak
+ppFailureTree tree = "Failure:" <> linebreak <> failure <> linebreak
   where
-    prettyAlg _ (Dive q doc) = yellow (pretty q) <+> doc
+    failure = runReader (cataAnn prettyAlg tree) []
+
+    prettyAlg :: [Context] -> FailureTreeF (Reader [Context] Doc) -> Reader [Context] Doc
+    prettyAlg c (Dive q mdoc) = do
+      doc <- local (const c) mdoc
+      ppInContext c (yellow (pretty q) <+> doc)
     prettyAlg c (Expectation exp Nothing) = ppInContext c ("required" <+> pretty exp)
     prettyAlg c (Expectation exp (Just got)) = ppInContext c ("expected" <+> pretty exp <> comma <+> "got" <+> pretty got)
     prettyAlg c (ParseError msg) = ppInContext c ("error:" <+> text msg)
-    prettyAlg _ (And docs) = ppBlock "and" docs
-    prettyAlg _ (Or docs) = ppBlock "or" docs
+    prettyAlg c (And mdocs) = do
+      docs <- mapM (local (const c)) mdocs
+      ppInContext c (ppBlock "and" docs)
+    prettyAlg c (Or mdocs) = do
+      docs <- mapM (local (const c)) mdocs
+      ppInContext c (ppBlock "or" docs)
 
 ppBlock :: String -> [Doc] -> Doc
 ppBlock op as =
