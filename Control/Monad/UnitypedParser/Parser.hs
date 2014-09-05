@@ -8,8 +8,9 @@
 
 module Control.Monad.UnitypedParser.Parser where
 
-import Control.Comonad.Cofree
 import Control.Applicative
+import Control.Arrow
+import Control.Comonad.Cofree
 import Control.Monad.Reader
 import Control.Monad.Except
 
@@ -33,50 +34,51 @@ data FailureTreeF e
   | ParseError String
     deriving (Functor, Show, Ord, Eq)
 
-type FailureTree = Fix FailureTreeF
-
-type Position = [ Qualifier ]
-
-data MergeOperation = Both | Any deriving (Eq)
+type FailureTree = Cofree FailureTreeF [Context]
+type Position = [Qualifier]
+newtype Context = Context String deriving (Show, Eq, Ord)
+data MergeOperation = Both | Any deriving (Show, Eq)
 
 mergeFailureTrees :: MergeOperation -> FailureTree -> FailureTree -> FailureTree
-mergeFailureTrees mergeOp ltree rtree = go mergeOp (unFix ltree) (unFix rtree)
+mergeFailureTrees mergeOp ltree rtree = go mergeOp ltree rtree
   where
-    unFix (Fix f) = f
-
-    go Any = goAny
+    go Any  = goAny
     go Both = goBoth
 
-    goBoth (Dive q1 t1) (Dive q2 t2) | q1 == q2 = Fix . Dive q1 $ goBoth (unFix t1) (unFix t2)
-    goBoth (And lnodes) (andify -> rnodes)      = Fix . And $ sort $ mergeNodes lnodes rnodes
-    goBoth ltree        rtree@And{}             = goBoth rtree ltree
-    goBoth ltree        rtree                   = Fix $ And [ Fix ltree, Fix rtree ]
+    goBoth (c :< Dive q l)   (k :< Dive p r) | q == p  = unify c k :< Dive q (goBoth l r)
+    goBoth (c :< And lnodes) rtree@(k :< _)     = unify c k :< (And . sort $ mergeNodes lnodes (andify rtree))
+    goBoth ltree             rtree@(_ :< And{}) = goBoth rtree ltree
+    goBoth ltree@(c :< _)    rtree@(k :< _)     = unify c k :< And [ltree, rtree]
 
-    goAny  (Dive q1 t1) (Dive q2 t2) | q1 == q2 = Fix . Dive q1 $ goAny (unFix t1) (unFix t2)
-    goAny  (Or  lnodes) (orify  -> rnodes)      = Fix . Or  $ sort $ mergeNodes lnodes rnodes
-    goAny  ltree        rtree@Or{}              = goAny rtree ltree
-    goAny  ltree        rtree                   = Fix $ Or  [ Fix ltree, Fix rtree ]
+    goAny  (c :< Dive q l)   (k :< Dive p r) | q == p  = unify c k :< Dive q (goAny l r)
+    goAny  (c :< Or  lnodes) rtree@(k :< _)     = unify c k :< (Or . sort $ mergeNodes lnodes (orify rtree))
+    goAny  ltree             rtree@(_ :< Or{})  = goAny rtree ltree
+    goAny  ltree@(c :< _)    rtree@(k :< _)     = unify c k :< Or [ltree, rtree]
 
-    andify (And nodes) = nodes
-    andify other = [Fix other]
-    orify  (Or nodes) = nodes
-    orify  other = [Fix other]
+    andify (_ :< And nodes) = nodes
+    andify other            = [other]
+    orify  (_ :< Or nodes)  = nodes
+    orify  other            = [other]
 
-    eqQ (Fix (Dive q1 _)) (Fix (Dive q2 _)) = q1 == q2
+    unify a b = map snd . takeWhile fst $ zipWith (\a b -> (a == b, a)) (reverse a) (reverse b)
+
+    eqQ (_ :< (Dive q1 _)) (_ :< (Dive q2 _)) = q1 == q2
     eqQ _ _ = False
 
     mergeNodes [] rs = rs
     mergeNodes ls [] = ls
-    mergeNodes (l:ls) (r:rs) | l `eqQ` r = go mergeOp (unFix l) (unFix r) : mergeNodes ls rs
-                             | l < r     = l : mergeNodes ls (r:rs)
-                             | otherwise = r : mergeNodes (l:ls) rs
+    mergeNodes (l:ls) (r:rs)
+      | l `eqQ` r = go mergeOp l r : mergeNodes ls rs
+      | l < r     = l : mergeNodes ls (r:rs)
+      | otherwise = r : mergeNodes (l:ls) rs
 
 type Raw f = Fix f
 type Annotated f = Cofree f Position
 
-data Result a = Success a
-              | Failure FailureTree
-                deriving (Functor)
+data Result a
+  = Success a
+  | Failure FailureTree
+    deriving (Functor)
 
 instance Monad Result where
   return = Success
@@ -91,54 +93,54 @@ instance Applicative Result where
   Failure e <*> Failure i = Failure $ mergeFailureTrees Both e i
 
 instance Alternative Result where
-  empty = Failure (Fix $ ParseError "empty")
+  empty = Failure ([] :< ParseError "empty")
   Success a <|> _         = Success a
   Failure _ <|> Success a = Success a
   Failure e <|> Failure i = Failure $ mergeFailureTrees Any e i
 
 newtype ParseM a = ParseM
-  { unParseM :: ReaderT Position Result a }
-  deriving (Functor, Monad, MonadReader Position)
+  { unParseM :: ReaderT (Position, [Context]) Result a }
+  deriving (Functor, Monad, MonadReader (Position, [Context]))
 
 instance Applicative ParseM where
   pure = return
   fa <*> b = do
-    pos <- ask
-    let fa' = runReaderT (unParseM fa) pos
-    let b'  = runReaderT (unParseM b) pos
+    env <- ask
+    let fa' = runReaderT (unParseM fa) env
+    let b'  = runReaderT (unParseM b) env
     mkParseM (\_ -> fa' <*> b')
 
 instance Alternative ParseM where
-  empty = throwError (Fix $ ParseError "empty")
+  empty = throwError ([] :< ParseError "empty")
   a <|> b = do
-    pos <- ask
-    let a' = runReaderT (unParseM a) pos
-    let b' = runReaderT (unParseM b) pos
+    env <- ask
+    let a' = runReaderT (unParseM a) env
+    let b' = runReaderT (unParseM b) env
     mkParseM (\_ -> a' <|> b')
 
 settle :: FailureTree -> Position -> FailureTree
-settle = foldr (\q -> Fix . Dive q)
+settle = foldr (\q -> ([] :<) . Dive q)
 
 instance MonadError FailureTree ParseM where
-  throwError fs = mkParseM (Failure . settle fs . reverse)
+  throwError fs = mkParseM (Failure . settle fs . reverse . fst)
   catchError p f = do
-    pos <- ask
-    case runParseM' pos p of
+    env <- ask
+    case runParseM' env p of
       Success a -> return a
       Failure fs -> f fs
 
 parse :: (Annotatible f) => (Annotated f -> ParseM a) -> Raw f -> Either FailureTree a
 parse p = runParseM . p . annotate
 
-runParseM' :: Position -> ParseM a -> Result a
+runParseM' :: (Position, [Context]) -> ParseM a -> Result a
 runParseM' p = flip runReaderT p . unParseM
 
 runParseM :: ParseM a -> Either FailureTree a
-runParseM = unResult . runParseM' [InObj (Id "@")]
+runParseM = unResult . runParseM' ([InObj (Id "@")], [])
   where unResult (Success a)      = Right a
         unResult (Failure reason) = Left reason
 
-mkParseM :: (Position -> Result a) -> ParseM a
+mkParseM :: ((Position, [Context]) -> Result a) -> ParseM a
 mkParseM fr = ParseM (ReaderT fr)
 
 class GetId a where
@@ -147,26 +149,33 @@ class GetId a where
   getIn = InObj . getId
 
 expectationError :: (GetId e) => Identifier -> e -> ParseM a
-expectationError expected got =
-  throwError $ Fix $ Expectation expected (Just (getId got))
+expectationError expected got = do
+  ctx <- asks snd
+  throwError $ (ctx :<) $ Expectation expected (Just (getId got))
 
 expectationErrorStr :: Identifier -> Identifier -> ParseM a
-expectationErrorStr expected got =
-  throwError $ Fix $ Expectation expected (Just got)
+expectationErrorStr expected got = do
+  ctx <- asks snd
+  throwError $ (ctx :<) $ Expectation expected (Just got)
 
 expectationErrorField :: Identifier -> ParseM a
-expectationErrorField expected =
-  throwError $ Fix $ Expectation expected Nothing
+expectationErrorField expected = do
+  ctx <- asks snd
+  throwError $ (ctx :<) $ Expectation expected Nothing
 
 parseError :: String -> ParseM a
-parseError msg =
-  throwError $ Fix $ ParseError msg
+parseError msg = do
+  ctx <- asks snd
+  throwError $ (ctx :<) $ ParseError msg
 
 dive :: Qualifier -> ParseM a -> ParseM a
-dive q = local (q :)
+dive q = local (first (q :))
 
 jump :: Position -> ParseM a -> ParseM a
-jump pos = local (const pos)
+jump pos = local (first (const pos))
+
+label :: String -> ParseM a -> ParseM a
+label s = local (second (Context s :))
 
 class Annotatible f where
   annotate :: Raw f -> Annotated f

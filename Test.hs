@@ -88,7 +88,8 @@ triangle = iDict
   ]
 
 pTriangleArea :: AnnotatedValue -> ParseM Double
-pTriangleArea = withDict (\d -> pFromBaseAndHeight d <|> pFromSidesAndAngle d)
+pTriangleArea = withDict (\d -> label "from base and height" (pFromBaseAndHeight d)
+                            <|> label "from sides and angle" (pFromSidesAndAngle d))
   where
     fromBaseAndHeight :: Double -> Double -> Double
     fromBaseAndHeight b h = b * h / 2

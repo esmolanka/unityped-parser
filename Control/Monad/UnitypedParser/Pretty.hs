@@ -8,10 +8,13 @@ module Control.Monad.UnitypedParser.Pretty
 
 import System.IO
 import Control.Arrow (left)
-import Data.Functor.Foldable
+import Control.Comonad.Cofree (Cofree (..))
 import Text.PrettyPrint.ANSI.Leijen as PP
 
 import Control.Monad.UnitypedParser.Parser
+
+cataAnn :: (Functor f) => (a -> f b -> b) -> Cofree f a -> b
+cataAnn alg (ann :< v) = alg ann . fmap (cataAnn alg) $ v
 
 instance Pretty Qualifier where
   pretty (InObj i) = pretty i
@@ -22,15 +25,19 @@ instance Pretty Qualifier where
 instance Pretty Identifier where
   pretty (Id s) = text s
 
+ppInContext :: [Context] -> Doc -> Doc
+ppInContext [] doc = doc
+ppInContext (Context s : _) doc = vcat [green . brackets . text $ s, doc]
+
 ppFailureTree :: FailureTree -> Doc
-ppFailureTree tree = "Failure:" <> linebreak <> cata prettyAlg tree <> linebreak
+ppFailureTree tree = "Failure:" <> linebreak <> cataAnn prettyAlg tree <> linebreak
   where
-    prettyAlg (Dive q doc) = yellow (pretty q) <+> doc
-    prettyAlg (Expectation exp Nothing) = "required" <+> pretty exp
-    prettyAlg (Expectation exp (Just got)) = "expected" <+> pretty exp <> comma <+> "got" <+> pretty got
-    prettyAlg (ParseError msg) = "error:" <+> text msg
-    prettyAlg (And docs) = ppBlock "and" docs
-    prettyAlg (Or docs) = ppBlock "or" docs
+    prettyAlg _ (Dive q doc) = yellow (pretty q) <+> doc
+    prettyAlg c (Expectation exp Nothing) = ppInContext c ("required" <+> pretty exp)
+    prettyAlg c (Expectation exp (Just got)) = ppInContext c ("expected" <+> pretty exp <> comma <+> "got" <+> pretty got)
+    prettyAlg c (ParseError msg) = ppInContext c ("error:" <+> text msg)
+    prettyAlg _ (And docs) = ppBlock "and" docs
+    prettyAlg _ (Or docs) = ppBlock "or" docs
 
 ppBlock :: String -> [Doc] -> Doc
 ppBlock op as =
