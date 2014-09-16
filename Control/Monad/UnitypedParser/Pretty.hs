@@ -20,7 +20,7 @@ instance Pretty Qualifier where
   pretty (InObj _)    = empty
   pretty (InField f)  = "in" <+> dot <> text f <> colon
   pretty (InColumn c) = "in" <+> colon <> text c <> colon
-  pretty (AtIndex i)  = "at" <+> brackets (int i)
+  pretty (AtIndex i)  = "at" <+> brackets (int i) <> colon
 
 instance Pretty Identifier where
   pretty (Id s) = text s

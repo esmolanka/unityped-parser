@@ -17,14 +17,16 @@ triangle = iDict
   , "angle"  .= iDouble 0.8 -- BTW, this notation is also valid
   ]
 
-pTriangleArea :: AnnotatedValue -> Parser Double
-pTriangleArea = withDict (\d -> pFromBaseAndHeight d <|> pFromSidesAndAngle d)
+pTriangleArea :: AnnotatedValue -> ParseM Double
+pTriangleArea = withDict (\d -> pFromBaseAndHeight d
+                            <|> pFromSidesAndAngle d) <?.> "triangle"
   where
     fromBaseAndHeight :: Double -> Double -> Double
     fromBaseAndHeight b h = b * h / 2
 
     pFromBaseAndHeight d = fromBaseAndHeight <$> (d .: "base")
                                              <*> (d .: "height")
+                                             <?> "from base and height"
 
     fromSidesAndAngle:: Double -> Double -> Double -> Double
     fromSidesAndAngle a b alpha = a * b * sin alpha / 2
@@ -32,13 +34,20 @@ pTriangleArea = withDict (\d -> pFromBaseAndHeight d <|> pFromSidesAndAngle d)
     pFromSidesAndAngle d = fromSidesAndAngle <$> (d  .: "a-side")
                                              <*> (d  .: "b-side")
                                              <*> (d .?: "angle" .?= pi / 4)
-                                                 -- default angle is 45 deg
+                                             <?> "from sides and angle"
 
 -- ghci> parseIO pTriangleArea triangle
 -- Failure:
--- @ Dict { { required .base and
---            required .height } or
---          required .b-side }
+-- [triangle]
+-- any of
+-- { [from base and height/triangle]
+--   all of
+--   { required .base
+--   , required .height
+--   }
+-- , [from sides and angle/triangle]
+--   required .b-side
+-- }
 ```
 
 Please see `Test.hs` for details.
@@ -87,7 +96,11 @@ together v = (++) <$> lensLike3 v
 
 -- ghci> parseIO together dictWithTable
 -- Failure:
--- @ Dict .SomeTable Table{TBL} { required :S and
---                                :X [2] { expected Int, got Double or
---                                         expected String, got Double } }
+-- in .SomeTable: all of
+-- { required :S
+-- , in :X: at [2]: any of
+--   { expected Int, got Double
+--   , expected String, got Double
+--   }
+-- }
 ```
