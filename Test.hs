@@ -25,7 +25,7 @@ testHelloWorld = do
   parseIO pHelloWhat helloWorldDict
 
   putStrLn "Trying \"Greetings\""
-  parseIO pGreetingsTo' helloWorldDict
+  parseIO pGreetingsTo' helloWorldDict >>= print
 
 -- ## Simple example with arrays
 -- {"Greetings": ["John", "Bob", "Alice"]}
@@ -49,10 +49,10 @@ pFourthPerson = pGreetingsTo >=> withArr (withElem 3 parseValue)
 testGreeting :: IO ()
 testGreeting = do
   putStrLn "Third person to greet is: "
-  parseIO pThirdPerson greetingsDict
+  parseIO pThirdPerson greetingsDict >>= print
 
   putStrLn "Fourth person to greet is: "
-  parseIO pFourthPerson greetingsDict
+  parseIO pFourthPerson greetingsDict >>= print
 
 -- ## Simple context dependent example
 -- { "Index": 2
@@ -76,7 +76,7 @@ pContextDependentGreeting obj = do
 
 testContextDependentGreeting :: IO ()
 testContextDependentGreeting =
-  parseIO pContextDependentGreeting greetingsDictWithIndex
+  parseIO pContextDependentGreeting greetingsDictWithIndex >>= print
 
 -- ## Alternative + Applicative example
 -- {"a-side": 5, "angle": 0.8}
@@ -107,7 +107,7 @@ pTriangleArea = withDict (\d -> pFromBaseAndHeight d
                                              <?> "from sides and angle"
 testTriangleArea :: IO ()
 testTriangleArea =
-  parseIO pTriangleArea triangle
+  parseIO pTriangleArea triangle >>= print
 
 -- ## Parsing and validating triangle, using FromValue typeclass
 
@@ -139,7 +139,7 @@ instance FromValue Triangle where
 
 testTriangle :: IO ()
 testTriangle =
-  parseIO (parseValue ::AnnotatedValue -> ParseM Triangle) triangle2
+  parseIO (parseValue ::AnnotatedValue -> ParseM Triangle) triangle2 >>= print
 
 -- ## More dictionary accessors
 
@@ -154,8 +154,8 @@ pFooBarQuux d = d .: "Foo" .: "Bar" .?: "Quux" .?= (-1 :: Int)
 
 testNestedDictionary :: IO ()
 testNestedDictionary = do
-  parseIO pFooBarBaz nestedDictionary
-  parseIO pFooBarQuux nestedDictionary
+  parseIO pFooBarBaz nestedDictionary >>= print
+  parseIO pFooBarQuux nestedDictionary >>= print
 
 --------------------------------------------------------------------------------
 -- ## Nice stuff
@@ -180,7 +180,7 @@ lensLike3 v = v .: "SomeTable" .|: "S" .!! 2 <?> "Parser3"
 testLensLike :: IO ()
 testLensLike = parseIO (\v -> (++) <$> lensLike3 v
                                    <*> ((show <$> lensLike1 v) <|> lensLike2 v))
-                       dictWithTable
+                       dictWithTable >>= print
 
 --------------------------------------------------------------------------------
 -- ## Messy parser examples
@@ -254,6 +254,6 @@ main = do
   testTriangle
   testNestedDictionary
   testLensLike
-  parseIO pFooX2orBuqzFixx val1
-  parseIO pSomeComplex someComplexVal
-  parseIO parser2 someComplexVal
+  parseIO pFooX2orBuqzFixx val1 >>= print
+  parseIO pSomeComplex someComplexVal >>= print
+  parseIO parser2 someComplexVal >>= print

@@ -119,7 +119,9 @@ instance Alternative ParseM where
     mkParseM (\_ -> a' <|> b')
 
 settle :: FailureTree -> Position -> FailureTree
-settle = foldr (\q -> ([] :<) . Dive q)
+settle tree = foldr (\q -> ([] :<) . Dive q) tree . filter (not . inObj)
+  where inObj (InObj _) = True
+        inObj _ = False
 
 instance MonadError FailureTree ParseM where
   throwError fs = mkParseM (Failure . settle fs . reverse . fst)
