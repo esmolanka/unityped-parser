@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                unityped-parser
-version:             0.0.4
+version:             0.0.5
 synopsis:            Parser from unityped representation to Haskell data structures
 -- description:
 license:             PublicDomain
