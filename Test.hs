@@ -245,6 +245,19 @@ pSomeComplex v = label "pSomeComplex" $ do
   v1 <- withDict (withField "World" return) v
   (+) <$> withArr (withElem n parseValue) v1 <*> withDict (\d -> (d .: "Foo") <|> (read <$> d .: "Bar")) v2
 
+structureDeep :: Value
+structureDeep = iDict [ "Foo" .= iDict [ "Bar" .= iDict [] ] ]
+
+deepAlternatives :: AnnotatedValue -> ParseM Int
+deepAlternatives v = alt0 v <|> alt1 v <|>  alt2 v <|> alt3 v <|> alt4 v <|> alt5 v
+  where
+    alt0 v = parseValue v
+    alt1 v = v .: "Foo" .: "Bar"
+    alt2 v = v .: "Foo" .: "Bar" .: "X" .!! 5
+    alt3 v = v .: "Foo" .: "Baz" .!! 5
+    alt4 v = v .: "Foo" .: "Baz" .!! 10
+    alt5 v = v .: "Foo" .: "Bar" .: "X" .: "Elems" .!! 0
+
 main :: IO ()
 main = do
   testHelloWorld

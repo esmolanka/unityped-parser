@@ -14,7 +14,7 @@ import Control.Comonad.Cofree
 import Control.Monad.Reader
 import Control.Monad.Except
 
-import Data.List
+import qualified Data.Set as S
 import Data.Functor.Foldable
 
 data Identifier = Id { unId :: String } deriving (Show, Ord, Eq)
@@ -22,14 +22,13 @@ data Identifier = Id { unId :: String } deriving (Show, Ord, Eq)
 data Qualifier
   = InObj Identifier
   | InField String
-  | InColumn String
   | AtIndex Int
     deriving (Show, Ord, Eq)
 
 data FailureTreeF e
   = And [e]
   | Or  [e]
-  | Dive Qualifier e
+  | Dive (Qualifier, Maybe Identifier) e
   | Expectation Identifier (Maybe Identifier)
   | ParseError String
     deriving (Functor, Show, Ord, Eq)
@@ -39,38 +38,44 @@ type Position = [Qualifier]
 newtype Context = Context String deriving (Show, Eq, Ord)
 data MergeOperation = Both | Any deriving (Show, Eq)
 
+commonPrefix :: (Eq a) => [a] -> [a] -> [a]
+commonPrefix a b = reverse . map snd . takeWhile fst $ zipWith (\a b -> (a == b, a)) (reverse a) (reverse b)
+
 mergeFailureTrees :: MergeOperation -> FailureTree -> FailureTree -> FailureTree
 mergeFailureTrees mergeOp ltree rtree = go mergeOp ltree rtree
   where
     go Any  = goAny
     go Both = goBoth
 
-    goBoth (c :< Dive q l)   (k :< Dive p r) | q == p  = unify c k :< Dive q (goBoth l r)
-    goBoth (c :< And lnodes) rtree@(k :< _)     = unify c k :< (And . sort $ mergeNodes lnodes (andify rtree))
+    goBoth (c :< Dive q l)   (k :< Dive p r) | q == p = commonPrefix c k :< Dive q (goBoth l r)
+    goBoth (c :< And lnodes) rtree@(k :< _)     = commonPrefix c k :< (mkNode And $ mergeNodes lnodes (andify rtree))
     goBoth ltree             rtree@(_ :< And{}) = goBoth rtree ltree
-    goBoth ltree@(c :< _)    rtree@(k :< _)     = unify c k :< And [ltree, rtree]
+    goBoth ltree@(c :< _)    rtree@(k :< _)     = commonPrefix c k :< (mkNode And $ S.fromList [ltree, rtree])
 
-    goAny  (c :< Dive q l)   (k :< Dive p r) | q == p  = unify c k :< Dive q (goAny l r)
-    goAny  (c :< Or  lnodes) rtree@(k :< _)     = unify c k :< (Or . sort $ mergeNodes lnodes (orify rtree))
+    goAny  (c :< Dive q l)   (k :< Dive p r) | q == p = commonPrefix c k :< Dive q (goAny l r)
+    goAny  (c :< Or  lnodes) rtree@(k :< _)     = commonPrefix c k :< (mkNode Or $ mergeNodes lnodes (orify rtree))
     goAny  ltree             rtree@(_ :< Or{})  = goAny rtree ltree
-    goAny  ltree@(c :< _)    rtree@(k :< _)     = unify c k :< Or [ltree, rtree]
+    goAny  ltree@(c :< _)    rtree@(k :< _)     = commonPrefix c k :< (mkNode Or $ S.fromList [ltree, rtree])
 
     andify (_ :< And nodes) = nodes
     andify other            = [other]
     orify  (_ :< Or nodes)  = nodes
     orify  other            = [other]
 
-    unify a b = reverse . map snd . takeWhile fst $ zipWith (\a b -> (a == b, a)) (reverse a) (reverse b)
+    mkNode node alts = case S.toList alts of
+      []  -> error "Empty list of node alternatives"
+      [_ :< x] -> x
+      lst -> node lst
 
     eqQ (_ :< (Dive q1 _)) (_ :< (Dive q2 _)) = q1 == q2
     eqQ _ _ = False
 
-    mergeNodes [] rs = rs
-    mergeNodes ls [] = ls
+    mergeNodes [] rs = S.fromList rs
+    mergeNodes ls [] = S.fromList ls
     mergeNodes (l:ls) (r:rs)
-      | l `eqQ` r = go mergeOp l r : mergeNodes ls rs
-      | l < r     = l : mergeNodes ls (r:rs)
-      | otherwise = r : mergeNodes (l:ls) rs
+      | l `eqQ` r = S.insert (go mergeOp l r) (mergeNodes ls rs)
+      | l < r     = S.insert l (mergeNodes ls (r:rs))
+      | otherwise = S.insert r (mergeNodes (l:ls) rs)
 
 type Raw f = Fix f
 type Annotated f = Cofree f Position
@@ -119,9 +124,10 @@ instance Alternative ParseM where
     mkParseM (\_ -> a' <|> b')
 
 settle :: FailureTree -> Position -> FailureTree
-settle tree = foldr (\q -> ([] :<) . Dive q) tree . filter (not . inObj)
-  where inObj (InObj _) = True
-        inObj _ = False
+settle tree = fst . foldr embed (tree, Nothing)
+  where
+    embed (InObj idn) (tree, _) = (tree, Just idn)
+    embed q (tree, ty) = ([] :< Dive (q, ty)  tree, Nothing)
 
 instance MonadError FailureTree ParseM where
   throwError fs = mkParseM (Failure . settle fs . reverse . fst)

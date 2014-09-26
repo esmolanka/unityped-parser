@@ -18,9 +18,8 @@ cataAnn alg (ann :< v) = alg ann . fmap (cataAnn alg) $ v
 
 instance Pretty Qualifier where
   pretty (InObj _)    = empty
-  pretty (InField f)  = "in" <+> dot <> text f <> colon
-  pretty (InColumn c) = "in" <+> colon <> text c <> colon
-  pretty (AtIndex i)  = "at" <+> brackets (int i) <> colon
+  pretty (InField f)  = "in" <+> dot <> text f
+  pretty (AtIndex i)  = "at" <+> brackets (int i)
 
 instance Pretty Identifier where
   pretty (Id s) = text s
@@ -46,9 +45,10 @@ ppFailureTree tree = "Failure:" <> linebreak <> failure <> linebreak
   where
     failure = runReader (cataAnn prettyAlg tree) []
     prettyAlg :: [Context] -> FailureTreeF (Reader [Context] Doc) -> Reader [Context] Doc
-    prettyAlg c (Dive q mdoc) = do
+    prettyAlg c (Dive (q, mty) mdoc) = do
       doc <- local (const c) mdoc
-      ppInContext c (yellow (pretty q) <+> doc)
+      let tydoc = maybe empty (\idn -> parens (pretty idn)) mty
+      ppInContext c (yellow (pretty q <> tydoc <> colon) <+> doc)
     prettyAlg c (Expectation exp Nothing) =
       ppInContext c ("required" <+> pretty exp)
     prettyAlg c (Expectation exp (Just got)) =

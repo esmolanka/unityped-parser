@@ -68,7 +68,7 @@ annotateField :: PairF (Reader Position (Cofree ValueF Position)) -> Reader Posi
 annotateField (k :*: rv) = fmap (k :*:) (local (InField k:) rv)
 
 annotateColumn :: ColumnF (Reader Position (Cofree ValueF Position)) -> Reader Position AnnotatedColumn
-annotateColumn (k :|: rv) = fmap (k :|:) (local (InColumn k:) (annotateWithIndices rv))
+annotateColumn (k :|: rv) = fmap (k :|:) (local (InField k:) (annotateWithIndices rv))
 
 annotateWithIndices :: [Reader Position AnnotatedValue] -> Reader Position [AnnotatedValue]
 annotateWithIndices = mapM (\(i, r) -> local (AtIndex i:) r) . zip [0..]
@@ -122,12 +122,12 @@ withColumn :: String -> ([AnnotatedValue] -> ParseM a) -> [AnnotatedColumn] -> P
 withColumn key p cols =
   case M.lookup key cols' of
     Nothing -> expectationErrorField (Id $ ":" ++ key)
-    Just v  -> dive (InColumn key) (p v)
+    Just v  -> dive (InField key) (p v)
   where
     cols' = M.fromList $ map (\(k :|: v) -> (k, v)) cols
 
 withColumns :: ([AnnotatedValue] -> ParseM a) -> [AnnotatedColumn] -> ParseM [(String, a)]
-withColumns p = mapM (\(k :|: v) -> (k,) <$> dive (InColumn k) (p v))
+withColumns p = mapM (\(k :|: v) -> (k,) <$> dive (InField k) (p v))
 
 withArr :: ([AnnotatedValue] -> ParseM a) -> AnnotatedValue -> ParseM a
 withArr f (pos :< o@(Arr vs)) = jump pos $ dive (getIn o) (f vs)
