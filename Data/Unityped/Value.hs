@@ -18,6 +18,7 @@ import Data.Foldable (Foldable)
 import qualified Data.Traversable as Tr
 
 import Control.Monad.UnitypedParser
+import Control.Monad.UnitypedParser.Monad ()
 
 data PairF e = String :*: e
   deriving (Eq, Show, Functor, Traversable, Foldable)

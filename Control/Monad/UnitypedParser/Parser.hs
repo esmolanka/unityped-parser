@@ -11,7 +11,6 @@ import Control.Applicative
 import Control.Arrow
 import Control.Comonad.Cofree
 import Control.Monad.Reader
-import Control.Monad.Except
 
 import qualified Data.Set as S
 import Data.Functor.Foldable
@@ -84,11 +83,6 @@ data Result a
   | Failure FailureTree
     deriving (Functor)
 
-instance Monad Result where
-  return = Success
-  (Success a) >>= fm = fm a
-  Failure f >>= _ = Failure f
-
 instance Applicative Result where
   pure = Success
   Success f <*> Success a = Success (f a)
@@ -104,37 +98,24 @@ instance Alternative Result where
 
 newtype ParseM a = ParseM
   { unParseM :: ReaderT (Position, [Context]) Result a }
-  deriving (Functor, Monad, MonadReader (Position, [Context]))
+  deriving (Functor)
 
 instance Applicative ParseM where
-  pure = return
-  fa <*> b = do
-    env <- ask
-    let fa' = runReaderT (unParseM fa) env
-    let b'  = runReaderT (unParseM b) env
-    mkParseM (\_ -> fa' <*> b')
+  pure a = mkParseM (\_ -> Success a)
+  fa <*> b = mkParseM (\env -> runReaderT (unParseM fa) env <*> runReaderT (unParseM b) env)
+
+mkParseError :: FailureTreeF FailureTree -> ParseM a
+mkParseError fs = mkParseM (\(path, ctx) ->  Failure . settle (ctx :< fs) . reverse $ path)
 
 instance Alternative ParseM where
-  empty = throwError ([] :< ParseError "empty")
-  a <|> b = do
-    env <- ask
-    let a' = runReaderT (unParseM a) env
-    let b' = runReaderT (unParseM b) env
-    mkParseM (\_ -> a' <|> b')
+  empty = mkParseError (ParseError "empty")
+  a <|> b = mkParseM (\env -> runReaderT (unParseM a) env <|> runReaderT (unParseM b) env)
 
 settle :: FailureTree -> Position -> FailureTree
 settle tree = fst . foldr embed (tree, Nothing)
   where
     embed (InObj idn) (tree, _) = (tree, Just idn)
     embed q (tree, ty) = ([] :< Dive (q, ty)  tree, Nothing)
-
-instance MonadError FailureTree ParseM where
-  throwError fs = mkParseM (Failure . settle fs . reverse . fst)
-  catchError p f = do
-    env <- ask
-    case runParseM' env p of
-      Success a -> return a
-      Failure fs -> f fs
 
 parse :: (Annotatible f) => (Annotated f -> ParseM a) -> Raw f -> Either FailureTree a
 parse p = runParseM . p . annotate
@@ -156,33 +137,28 @@ class GetId a where
   getIn = InObj . getId
 
 expectationError :: (GetId e) => Identifier -> e -> ParseM a
-expectationError expected got = do
-  ctx <- asks snd
-  throwError $ (ctx :<) $ Expectation expected (Just (getId got))
+expectationError expected got = mkParseError $ Expectation expected (Just (getId got))
 
 expectationErrorStr :: Identifier -> Identifier -> ParseM a
-expectationErrorStr expected got = do
-  ctx <- asks snd
-  throwError $ (ctx :<) $ Expectation expected (Just got)
+expectationErrorStr expected got = mkParseError $ Expectation expected (Just got)
 
 expectationErrorField :: Identifier -> ParseM a
-expectationErrorField expected = do
-  ctx <- asks snd
-  throwError $ (ctx :<) $ Expectation expected Nothing
+expectationErrorField expected = mkParseError $ Expectation expected Nothing
 
 parseError :: String -> ParseM a
-parseError msg = do
-  ctx <- asks snd
-  throwError $ (ctx :<) $ ParseError msg
+parseError msg = mkParseError $ ParseError msg
+
+localA :: ((Position, [Context]) -> (Position, [Context])) -> ParseM a -> ParseM a
+localA f p = mkParseM (\env -> runReaderT (unParseM p) (f env))
 
 dive :: Qualifier -> ParseM a -> ParseM a
-dive q = local (first (q :))
+dive q = localA (first (q :))
 
 jump :: Position -> ParseM a -> ParseM a
-jump pos = local (first (const pos))
+jump pos = localA (first (const pos))
 
 label :: String -> ParseM a -> ParseM a
-label s = local (second (Context s :))
+label s = localA (second (Context s :))
 
 label1 :: String -> (b -> ParseM a) -> b -> ParseM a
 label1 s f a = label s (f a)

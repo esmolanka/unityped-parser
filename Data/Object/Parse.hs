@@ -37,7 +37,7 @@ withFields
   => (k -> AnnotatedObject k s -> ParseM a)
   -> M.Map k (AnnotatedObject k s)
   -> ParseM (M.Map k a)
-withFields p = Tr.sequence . M.mapWithKey (\k -> dive (fieldQualifier k) . p k)
+withFields p = Tr.sequenceA . M.mapWithKey (\k -> dive (fieldQualifier k) . p k)
 
 withArray
   :: (GetId s)
@@ -59,7 +59,7 @@ withElems
   :: (AnnotatedObject k s -> ParseM a)
   -> [AnnotatedObject k s]
   -> ParseM [a]
-withElems p vs = mapM (\(n,v) -> dive (AtIndex n) (p v)) $ zip [0..] vs
+withElems p vs = Tr.sequenceA . map (\(n,v) -> dive (AtIndex n) (p v)) $ zip [0..] vs
 
 withScalar
   :: (GetId s)

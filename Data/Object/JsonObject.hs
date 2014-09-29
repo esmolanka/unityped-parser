@@ -8,6 +8,7 @@ module Data.Object.JsonObject where
 
 import Control.Applicative
 import Control.Monad.UnitypedParser
+import Control.Monad.UnitypedParser.Monad ()
 
 import qualified Data.Traversable as Tr
 import Data.Scientific
@@ -55,25 +56,25 @@ mkUndefined = mkScalar Undefined
 pNumber :: AnnotatedJsonObject -> ParseM Scientific
 pNumber = withScalar go
   where
-    go (Right (Number n)) = return n
+    go (Right (Number n)) = pure n
     go other = expectationErrorStr (Id "Number") . either id getId $ other
 
 pStr :: AnnotatedJsonObject -> ParseM String
 pStr = withScalar go
   where
-    go (Right (Str s)) = return s
+    go (Right (Str s)) = pure s
     go other = expectationErrorStr (Id "Str") . either id getId $ other
 
 pBool :: AnnotatedJsonObject -> ParseM Bool
 pBool = withScalar go
   where
-    go (Right (Logic s)) = return s
+    go (Right (Logic s)) = pure s
     go other = expectationErrorStr (Id "Bool") . either id getId $ other
 
 pUndefined :: AnnotatedJsonObject -> ParseM ()
 pUndefined = withScalar go
   where
-    go (Right Undefined) = return ()
+    go (Right Undefined) = pure ()
     go other = expectationErrorStr (Id "Undefined") . either id getId $ other
 
 class FromJSON a where
@@ -83,10 +84,10 @@ class ToJSON a where
   toJSON :: a -> JsonObject
 
 instance FromJSON AnnotatedJsonObject where
-  parseJSON = return
+  parseJSON = pure
 
 instance FromJSON JsonObject where
-  parseJSON = return . unannotate
+  parseJSON = pure . unannotate
 
 instance ToJSON JsonObject where
   toJSON = id

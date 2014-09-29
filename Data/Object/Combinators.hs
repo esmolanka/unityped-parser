@@ -24,10 +24,7 @@ infixl 6 .?:
 
 infix 5 .?=
 (.?=) :: ParseM (Maybe a) -> a -> ParseM a
-(.?=) p def =
-  p >>= \a -> case a of
-    Nothing -> return def
-    Just a  -> return a
+(.?=) p def = fmap (maybe def id) p
 
 
 class Indexable c a | a -> c where
