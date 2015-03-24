@@ -4,15 +4,17 @@ module Control.Parsing (
   -- * Construct and run parser
     Parser
   , mkParser
-  , parse
+  , runParsing
   -- * Parser underlying typeclass
   , Parsing
+  , Hole (..)
   -- * Combinators
   , traversing
-  , traversingSeq
+  , traversing'
   , recursive
-  , (<<*)
-  , (*>>)
+  , (<<*), (*>>)
+  , (<<^), (^>>)
+  , (<<<), (>>>)
   ) where
 
 import Prelude hiding ((.), id)
@@ -75,27 +77,27 @@ instance (Alternative f, Monad f) => ArrowPlus (Parser f) where
 type Parsing f = (Alternative f, Applicative f, Monad f)
 
 class Hole f a where
-  hole :: Parsing f => Parser f a [a]
+  holes :: Parsing f => Parser f a [a]
 
 mkParser :: (Parsing f) => (forall r. (b -> f r) -> a -> f r) -> Parser f a b
 mkParser with = Parser $ \i -> Codensity $ \f -> with f i
 
-parse :: (Parsing f) => Parser f a b -> a -> f b
-parse p i = runCodensity (runParser p i) pure
+runParsing :: (Parsing f) => Parser f a b -> a -> f b
+runParsing p i = runCodensity (runParser p i) pure
 
 traversing :: (Parsing f, Traversable t) => Parser f a b -> Parser f (t a) (t b)
 traversing p = Parser $ \i -> T.traverse (runParser p) i
 
-traversingSeq :: (Parsing f, Traversable t) => Parser f a b -> Parser f (t a) (t b)
-traversingSeq p = Parser $ \i -> T.mapM (runParser p) i
+traversing' :: (Parsing f, Traversable t) => Parser f a b -> Parser f (t a) (t b)
+traversing' p = Parser $ \i -> T.mapM (runParser p) i
 
 recursive :: (Parsing f) => Parser f a [a] -> Parser f a b -> Parser f a [b]
-recursive holes extract = arr (:[]) . extract <|> arr concat . traversingSeq (recursive holes extract) . holes
+recursive holes extract = arr (:[]) . extract <|> arr concat . traversing' (recursive holes extract) . holes
 
 infixr 0 *>>
 (*>>) :: (Parsing f, Hole f b) => Parser f a b -> Parser f b c -> Parser f a [c]
-(*>>) p extract = p >>> recursive hole extract
+(*>>) p extract = p >>> recursive holes extract
 
 infixr 0 <<*
 (<<*) :: (Parsing f, Hole f b) => Parser f b c -> Parser f a b -> Parser f a [c]
-(<<*) extract p = recursive hole extract <<< p
+(<<*) extract p = recursive holes extract <<< p

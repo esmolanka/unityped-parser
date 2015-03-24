@@ -108,6 +108,9 @@ withField key p pairs =
 withFields :: (AnnotatedValue -> ParseM a) -> [AnnotatedPair] -> ParseM [(String, a)]
 withFields p = mapM (\(k :*: v) -> (k,) <$> dive (InField k) (p v))
 
+withFields' :: (AnnotatedValue -> ParseM a) -> [AnnotatedPair] -> ParseM [a]
+withFields' p = mapM (\(k :*: v) -> dive (InField k) (p v))
+
 withTable :: String -> ([AnnotatedColumn] -> ParseM a) -> AnnotatedValue -> ParseM a
 withTable cls' f (pos :< o@(Table cls cols)) = jump pos $ dive (getIn o) (check *> f cols)
   where check = if cls' == cls then pure () else expectationErrorStr (Id $ "Class=" ++ cls') (Id $ "Class="++cls)

@@ -59,7 +59,7 @@ ppFailureTree tree = "Failure:" <> linebreak <> failure <> linebreak
       docs <- mapM (local (const c)) mdocs
       ppInContext c ("any of" <$> align (ppBlock docs))
 
-parsePretty :: (WithAnnotation f, Show a) => (Annotated f -> ParseM a) -> Raw f -> Either String a
+parsePretty :: (WithAnnotation f) => (Annotated f -> ParseM a) -> Raw f -> Either String a
 parsePretty p a = left (flip displayS "" . renderPretty 0.3 120 . ppFailureTree) (parse p a)
 
 parseIO :: (WithAnnotation f, Show a) => (Annotated f -> ParseM a) -> Raw f -> IO (Maybe a)
