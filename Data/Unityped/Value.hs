@@ -74,7 +74,7 @@ annotateColumn (k :|: rv) = fmap (k :|:) (local (InField k:) (annotateWithIndice
 annotateWithIndices :: [Reader Position AnnotatedValue] -> Reader Position [AnnotatedValue]
 annotateWithIndices = mapM (\(i, r) -> local (AtIndex i:) r) . zip [0..]
 
-instance Annotatible ValueF where
+instance WithAnnotation ValueF where
   annotate root = runReader (cata alg root) [InObj (Id "@")]
     where
       alg :: ValueF (Reader Position (Cofree ValueF Position)) -> Reader Position (Cofree ValueF Position)
@@ -82,7 +82,7 @@ instance Annotatible ValueF where
       alg obj@(Table cls cols) = (:<) <$> ask <*> local (getIn obj:) (Table cls <$> mapM annotateColumn cols)
       alg obj@(Arr vals)       = (:<) <$> ask <*> local (getIn obj:) (Arr       <$> annotateWithIndices vals)
       alg other                = (:<) <$> ask <*> Tr.sequence other
-  unannotate = error "Unannotation for ValueF is not implemented"
+  unannotate = cataAnn (\_ a -> Fix a)
 
 instance GetId (ValueF f)  where
   getId (Dict _)      = Id "Dict"

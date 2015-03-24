@@ -13,9 +13,6 @@ import Text.PrettyPrint.ANSI.Leijen as PP
 
 import Control.Monad.UnitypedParser.Parser
 
-cataAnn :: (Functor f) => (a -> f b -> b) -> Cofree f a -> b
-cataAnn alg (ann :< v) = alg ann . fmap (cataAnn alg) $ v
-
 instance Pretty Qualifier where
   pretty (InObj _)    = empty
   pretty (InField f)  = "in" <+> dot <> text f
@@ -62,10 +59,10 @@ ppFailureTree tree = "Failure:" <> linebreak <> failure <> linebreak
       docs <- mapM (local (const c)) mdocs
       ppInContext c ("any of" <$> align (ppBlock docs))
 
-parsePretty :: (Annotatible f, Show a) => (Annotated f -> ParseM a) -> Raw f -> Either String a
+parsePretty :: (WithAnnotation f, Show a) => (Annotated f -> ParseM a) -> Raw f -> Either String a
 parsePretty p a = left (flip displayS "" . renderPretty 0.3 120 . ppFailureTree) (parse p a)
 
-parseIO :: (Annotatible f, Show a) => (Annotated f -> ParseM a) -> Raw f -> IO (Maybe a)
+parseIO :: (WithAnnotation f, Show a) => (Annotated f -> ParseM a) -> Raw f -> IO (Maybe a)
 parseIO p a =
   case parse p a of
     Left reason -> do

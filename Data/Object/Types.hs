@@ -6,7 +6,7 @@ import Control.Applicative
 import Control.Monad.Reader
 import Control.Comonad.Cofree
 
-import Data.Functor.Foldable (Fix (..), Base, Foldable (..))
+import Data.Functor.Foldable (Fix (..), cata)
 import qualified Data.Map as M
 
 import qualified Data.Foldable as Fo
@@ -41,10 +41,6 @@ type AnnotatedObject k s = Annotated (ObjectF k s)
 type Pair k s = PairF k (Object k s)
 type AnnotatedPair k s = PairF k (AnnotatedObject k s)
 
-type instance Base (Cofree f a) = f
-instance Functor f => Foldable (Cofree f b) where
-  project (_ :< f) = f
-
 annotateWithIndices
   :: [Reader Position (AnnotatedObject k s)]
   -> Reader Position [AnnotatedObject k s]
@@ -65,7 +61,7 @@ class (Ord k) => FieldKey k where
   fieldQualifier :: k -> Qualifier
   fieldIdentifier :: k -> Identifier
 
-instance (FieldKey k, GetId s) => Annotatible (ObjectF k s) where
+instance (FieldKey k, GetId s) => WithAnnotation (ObjectF k s) where
   annotate root = runReader (cata alg root) [InObj (Id "@")]
     where
       alg :: (FieldKey k, GetId s) =>
@@ -75,4 +71,4 @@ instance (FieldKey k, GetId s) => Annotatible (ObjectF k s) where
       alg obj@(Array vals)   = (:<) <$> ask <*> local (getIn obj:) (Array <$> annotateWithIndices vals)
       alg obj@(Scalar s)     = (:<) <$> ask <*> local (getIn obj:) (Scalar <$> pure s)
 
-  unannotate root = cata Fix root
+  unannotate = cataAnn (const Fix)

@@ -7,6 +7,9 @@ module TestObj where
 
 import Control.Applicative
 
+import System.IO
+import System.Process
+
 import Data.Monoid
 
 import Control.Monad.UnitypedParser
@@ -31,10 +34,10 @@ pX = withObject (\o -> withField "X" parseJSON o
                    <|> withField "Y" parseJSON o)
 
 pBar :: AnnotatedObject String Scalar -> ParseM Int
-pBar = withObject (\o -> withField "Bar" pFoo o)
+pBar = withObject (withField "Bar" pFoo)
 
 pFoo :: AnnotatedObject String Scalar -> ParseM Int
-pFoo = withObject (\o -> withField "Foo" pBar o)
+pFoo = withObject (withField "Foo" pBar)
 
 pKey :: String -> Endo (AnnotatedObject String Scalar -> ParseM a)
 pKey k = Endo (\p -> withObject (withField k p))
@@ -82,8 +85,20 @@ pAlt5'' = withFocus (mempty <.> "Foo" <.> "Bar" <.> "X" .!!! 5)
 (.!!!) :: Endo (AnnotatedObject String Scalar -> ParseM a) -> Int -> Endo (AnnotatedObject String Scalar -> ParseM a)
 (.!!!) p n = p <> pElem n
 
-
+putStrPager :: String -> IO ()
+putStrPager str = do
+  (Just pipe, _, _, process) <-
+    createProcess
+      (CreateProcess (RawCommand "less" [])
+       Nothing Nothing CreatePipe
+       (UseHandle stdout) (UseHandle stderr)
+       True False True)
+  hPutStrLn pipe str
+  hClose pipe
+  waitForProcess process
+  return ()
 
 main :: IO ()
 main = do
-  parseIO deepAlternatives structureDeep >>= print
+  putStrLn "Running parser..."
+  either putStrPager print $ parsePretty deepAlternatives structureDeep
