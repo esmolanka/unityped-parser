@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Control.Monad.UnitypedParser.Pretty
+module Control.UnitypedParser.Pretty
   ( parsePretty
   , parseIO
   ) where
@@ -11,7 +11,7 @@ import Control.Arrow (left)
 import Control.Comonad.Cofree (Cofree (..))
 import Text.PrettyPrint.ANSI.Leijen as PP
 
-import Control.Monad.UnitypedParser.Parser
+import Control.UnitypedParser.Parser
 
 instance Pretty Qualifier where
   pretty (InObj _)    = empty

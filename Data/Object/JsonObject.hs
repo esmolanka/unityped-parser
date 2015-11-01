@@ -7,8 +7,8 @@
 module Data.Object.JsonObject where
 
 import Control.Applicative
-import Control.Monad.UnitypedParser
-import Control.Monad.UnitypedParser.Monad ()
+import Control.UnitypedParser
+import Control.UnitypedParser.Monad ()
 
 import qualified Data.Traversable as Tr
 import Data.Scientific

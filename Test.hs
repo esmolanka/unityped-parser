@@ -4,7 +4,7 @@ module Test where
 import Control.Applicative
 import Control.Monad
 
-import Control.Monad.UnitypedParser
+import Control.UnitypedParser
 import Data.Unityped
 
 -- ## Simple example

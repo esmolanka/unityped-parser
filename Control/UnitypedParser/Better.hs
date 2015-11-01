@@ -1,5 +1,5 @@
 
-module Control.Monad.UnitypedParser.Better
+module Control.UnitypedParser.Better
   ( UnitypedParser
   , P.Identifier (..)
   , P.GetId (..)
@@ -12,9 +12,9 @@ module Control.Monad.UnitypedParser.Better
   ) where
 
 import Control.Parsing
-import qualified Control.Monad.UnitypedParser.Parser as P
-import qualified Control.Monad.UnitypedParser.Pretty as P
-import Control.Monad.UnitypedParser.Monad ()
+import qualified Control.UnitypedParser.Parser as P
+import qualified Control.UnitypedParser.Pretty as P
+import Control.UnitypedParser.Monad ()
 
 type UnitypedParser = Parser P.ParseM
 

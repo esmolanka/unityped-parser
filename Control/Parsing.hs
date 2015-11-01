@@ -25,44 +25,27 @@ import Control.Category
 
 import Data.Traversable as T (Traversable, traverse, mapM)
 
-newtype Codensity f a = Codensity
-  { runCodensity :: forall r. (a -> f r) -> f r }
-
-instance (Functor f) => Functor (Codensity f) where
-  fmap f c = Codensity (\k -> runCodensity c (k . f))
-
-instance (Applicative f, Monad f) => Applicative (Codensity f) where
-  pure a = Codensity $ \k -> k a
-  (<*>) kfa kb = Codensity $ \k -> (runCodensity kfa pure <*> runCodensity kb pure) >>= k
-
-instance (Alternative f, Monad f) => Alternative (Codensity f) where
-  empty = Codensity $ \_ -> empty
-  (<|>) ka kb = Codensity $ \k -> (runCodensity ka pure <|> runCodensity kb pure) >>= k
-
-instance Monad (Codensity f) where
-  return a = Codensity $ \k -> k a
-  (>>=) ka fkb = Codensity $ \k -> runCodensity ka $ \a -> runCodensity (fkb a) k
-
 newtype Parser f a b = Parser
-  { runParser :: a -> Codensity f b }
+  { runParser :: a -> f b }
 
 instance Functor f => Functor (Parser f a) where
   fmap f p = Parser $ \i -> fmap f (runParser p i)
 
-instance (Applicative f, Monad f) => Applicative (Parser f a) where
+instance (Applicative f) => Applicative (Parser f a) where
   pure a = Parser $ \_ -> pure a
   (<*>) pfa pb = Parser $ \i -> runParser pfa i <*> runParser pb i
 
-instance (Alternative f, Monad f) => Alternative (Parser f a) where
+instance (Alternative f) => Alternative (Parser f a) where
   empty = Parser $ \_ -> empty
   (<|>) pa pb = Parser $ \i -> runParser pa i <|> runParser pb i
 
-instance Category (Parser f) where
-  id = Parser $ \i -> Codensity ($ i)
+instance (Monad f) => Category (Parser f) where
+  id = Parser $ \i -> return i
   (.) pbc pab = Parser $ \i -> runParser pab i >>= runParser pbc
 
 instance (Applicative f, Monad f) => Arrow (Parser f) where
-  arr f = Parser $ \i -> Codensity $ \k -> k (f i)
+  -- Monad f constaint is needed because Category instance needs it.
+  arr f = Parser $ \i -> pure (f i)
   first p = Parser $ \(i, c) -> (,) <$> runParser p i <*> pure c
   second p = Parser $ \(c, i) -> (,) <$> pure c <*> runParser p i
   (***) pa pb = Parser $ \(a, b) -> (,) <$> runParser pa a <*> runParser pb b
@@ -80,10 +63,10 @@ class Hole f a where
   holes :: Parsing f => Parser f a [a]
 
 mkParser :: (Parsing f) => (forall r. (b -> f r) -> a -> f r) -> Parser f a b
-mkParser with = Parser $ \i -> Codensity $ \f -> with f i
+mkParser with = Parser $ \i -> with pure i
 
 runParsing :: (Parsing f) => Parser f a b -> a -> f b
-runParsing p i = runCodensity (runParser p i) pure
+runParsing = runParser
 
 traversing :: (Parsing f, Traversable t) => Parser f a b -> Parser f (t a) (t b)
 traversing p = Parser $ \i -> T.traverse (runParser p) i

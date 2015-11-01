@@ -13,20 +13,23 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:
-    Data.Unityped
-    Data.Object
-    Data.Object.JsonObject
-    Control.Monad.UnitypedParser
-
-  other-modules:
-    Data.Unityped.Value
+    Control.UnitypedParser.Better
+    Control.UnitypedParser.Monad
+    Control.UnitypedParser.Parser
+    Control.UnitypedParser.Pretty
+    Control.UnitypedParser
+    Data.Unityped.Better
     Data.Unityped.Class
     Data.Unityped.Getters
-    Data.Object.Types
-    Data.Object.Parse
+    Data.Unityped.Value
+    Data.Unityped
+    Control.Parsing
     Data.Object.Combinators
-    Control.Monad.UnitypedParser.Parser
-    Control.Monad.UnitypedParser.Pretty
+    Data.Object.JsonObject
+    Data.Object.Parse
+    Data.Object.Types
+    Data.Object
+
   -- other-extensions:
   build-depends:       base >=4.7 && <4.8, mtl, ansi-wl-pprint, containers, transformers, free, recursion-schemes, scientific
   -- hs-source-dirs:
@@ -36,6 +39,12 @@ executable TestUnitypedParser
   main-is:             Test.hs
   ghc-options:         -main-is Test
   build-depends:       base >=4.7 && <4.8, mtl, ansi-wl-pprint, containers, transformers, free, recursion-schemes, unityped-parser
+  default-language:    Haskell2010
+
+executable TestUnitypedParserBetter
+  main-is:             TestBetter.hs
+  ghc-options:         -main-is TestBetter
+  build-depends:       base >=4.7 && <4.8, mtl, ansi-wl-pprint, containers, transformers, free, recursion-schemes, unityped-parser, scientific, process
   default-language:    Haskell2010
 
 executable TestUnitypedParserObj

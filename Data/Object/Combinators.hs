@@ -11,7 +11,7 @@ module Data.Object.Combinators where
 
 import Control.Applicative
 
-import Control.Monad.UnitypedParser
+import Control.UnitypedParser
 import Data.Object.Types
 
 class GettableByKey c k a | a -> c k where

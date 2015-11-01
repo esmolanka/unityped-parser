@@ -12,7 +12,7 @@ import System.Process
 
 import Data.Monoid
 
-import Control.Monad.UnitypedParser
+import Control.UnitypedParser
 import Data.Object
 import Data.Object.JsonObject
 

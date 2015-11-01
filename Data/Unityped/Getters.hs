@@ -7,7 +7,7 @@
 module Data.Unityped.Getters where
 
 import Control.Applicative
-import Control.Monad.UnitypedParser
+import Control.UnitypedParser
 import Data.Unityped.Value
 import Data.Unityped.Class
 

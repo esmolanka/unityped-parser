@@ -8,8 +8,8 @@ import Control.Applicative
 import Control.Arrow
 
 import Data.Unityped.Value
-import qualified Control.Monad.UnitypedParser.Parser as P
-import Control.Monad.UnitypedParser.Better
+import qualified Control.UnitypedParser.Parser as P
+import Control.UnitypedParser.Better
 
 import Control.Parsing
 

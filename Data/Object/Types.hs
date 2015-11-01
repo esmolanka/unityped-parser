@@ -12,7 +12,7 @@ import qualified Data.Map as M
 import qualified Data.Foldable as Fo
 import qualified Data.Traversable as Tr
 
-import Control.Monad.UnitypedParser
+import Control.UnitypedParser
 
 data ObjectF k s e
   = Object !(M.Map k e)

@@ -35,7 +35,7 @@ module Data.Unityped
   , module Data.Unityped.Getters
   ) where
 
-import Control.Monad.UnitypedParser
+import Control.UnitypedParser
 import Data.Unityped.Value
 import Data.Unityped.Class
 import Data.Unityped.Getters

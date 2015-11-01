@@ -53,13 +53,13 @@ pTriangleArea = withDict (\d -> pFromBaseAndHeight d
 Please see `Test.hs` for details.
 
 So there are simple rules:
-  1. `Monad` instance defines *then* behaviour. So `a >>= b` produces
+  1. `Monad` instance defines *then* behavior. So `a >>= b` produces
      either error message of parser `a` or message of parser `b`, depending
      on which one is failing, but not both.
-  2. `Applicative` instance defines *simultaneously* behaviour. So
+  2. `Applicative` instance defines *simultaneously* behavior. So
      something like `(,,) <$> a <*> b <*> c` will produce up to 3 error
      messages for each failing parser, combined with `and` operation.
-  3. `Alternative` instance defines *choose* behaviour. So `a <|> b <|> c`
+  3. `Alternative` instance defines *choose* behavior. So `a <|> b <|> c`
      will produce 3 error messages, combined with `or` operation.
 
 Parser and current unityped value data type are separated and parser

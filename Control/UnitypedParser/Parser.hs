@@ -5,7 +5,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns #-}
 
-module Control.Monad.UnitypedParser.Parser where
+module Control.UnitypedParser.Parser where
 
 import Control.Applicative
 import Control.Arrow

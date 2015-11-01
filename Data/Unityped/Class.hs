@@ -8,7 +8,7 @@ module Data.Unityped.Class where
 
 import Control.Applicative
 
-import Control.Monad.UnitypedParser
+import Control.UnitypedParser
 import Data.Unityped.Value
 
 class FromValue a where

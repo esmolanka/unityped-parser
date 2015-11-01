@@ -5,12 +5,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StandaloneDeriving #-}
 
-module Control.Monad.UnitypedParser.Monad where
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
+module Control.UnitypedParser.Monad where
 
 import Control.Monad.Reader
-import Control.Monad.Except
+import Control.Monad.Error
 
-import Control.Monad.UnitypedParser.Parser
+import Control.UnitypedParser.Parser
 
 instance Monad Result where
   return = Success

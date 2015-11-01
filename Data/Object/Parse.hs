@@ -10,7 +10,7 @@ import Control.Comonad.Cofree
 import qualified Data.Map as M
 import qualified Data.Traversable as Tr
 
-import Control.Monad.UnitypedParser
+import Control.UnitypedParser
 import Data.Object.Types
 
 withObject
