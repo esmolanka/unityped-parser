@@ -4,7 +4,9 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ConstraintKinds #-}
 
-module Data.Object.JsonObject where
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
+module Data.JsonObject where
 
 import Control.Applicative
 import Control.UnitypedParser
@@ -93,7 +95,7 @@ instance ToJSON JsonObject where
   toJSON = id
 
 instance FromJSON Int where
-  parseJSON v = fromIntegral . truncate <$> pNumber v
+  parseJSON v = truncate <$> pNumber v
 
 instance ToJSON Int where
   toJSON = mkNumber . fromIntegral

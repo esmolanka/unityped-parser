@@ -14,7 +14,7 @@ import Data.Monoid
 
 import Control.UnitypedParser
 import Data.Object
-import Data.Object.JsonObject
+import Data.JsonObject
 
 structureDeep :: Object String Scalar
 structureDeep = object [ "Foo" .= object [ "Bar" .= object [ "X" .= mkNumber 5 ] ] ]

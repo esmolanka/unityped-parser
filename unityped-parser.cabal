@@ -25,30 +25,35 @@ library
     Data.Unityped
     Control.Parsing
     Data.Object.Combinators
-    Data.Object.JsonObject
     Data.Object.Parse
     Data.Object.Types
     Data.Object
+    Data.JsonObject
+    Data.TomlObject
+  
+  ghc-options:         -Wall -Werror -fno-warn-name-shadowing -fno-warn-unused-do-bind
 
   -- other-extensions:
-  build-depends:       base >=4.7 && <4.8, mtl, ansi-wl-pprint, containers, transformers, free, recursion-schemes, scientific
+  build-depends:       base >=4.7 && <4.8, mtl, ansi-wl-pprint, containers, transformers,
+                       free, recursion-schemes, scientific, unordered-containers, text, htoml,
+                       time, parsec
   -- hs-source-dirs:
   default-language:    Haskell2010
 
 executable TestUnitypedParser
   main-is:             Test.hs
-  ghc-options:         -main-is Test
+  ghc-options:         -main-is Test -Wall -Werror -fno-warn-name-shadowing -fno-warn-unused-do-bind
   build-depends:       base >=4.7 && <4.8, mtl, ansi-wl-pprint, containers, transformers, free, recursion-schemes, unityped-parser
   default-language:    Haskell2010
 
 executable TestUnitypedParserBetter
   main-is:             TestBetter.hs
-  ghc-options:         -main-is TestBetter
+  ghc-options:         -main-is TestBetter -Wall -Werror -fno-warn-name-shadowing -fno-warn-unused-do-bind
   build-depends:       base >=4.7 && <4.8, mtl, ansi-wl-pprint, containers, transformers, free, recursion-schemes, unityped-parser, scientific, process
   default-language:    Haskell2010
 
 executable TestUnitypedParserObj
   main-is:             TestObj.hs
-  ghc-options:         -main-is TestObj
+  ghc-options:         -main-is TestObj -Wall -Werror -fno-warn-name-shadowing -fno-warn-unused-do-bind
   build-depends:       base >=4.7 && <4.8, mtl, ansi-wl-pprint, containers, transformers, free, recursion-schemes, unityped-parser, scientific, process
   default-language:    Haskell2010
